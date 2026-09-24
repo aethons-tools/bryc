@@ -23,7 +23,7 @@ Two front ends share one core package:
 
 ## Module layout
 
-Module path: `github.com/brentmccullough/at-bryc` (adjust if hosted elsewhere).
+Module path: `github.com/aethons-tools/bryc`.
 Location: `~/local-repos/at-bryc`.
 
 ```

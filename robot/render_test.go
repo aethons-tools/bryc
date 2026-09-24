@@ -72,3 +72,11 @@ func TestRenderEveryValue(t *testing.T) {
 		}
 	}
 }
+func TestRenderCyclopsUsesGlow(t *testing.T) {
+	s := Resolve(Spec{Eyes: "cyclops", Glow: "#00ff00"}, 4)
+	// A point on the lens ring: right of center, between pupil (r40) and rim (r95).
+	got := pixel(Render(s, 200), 200, 565, 444)
+	if !near(got, color.NRGBA{0, 255, 0, 255}) {
+		t.Errorf("lens = %v, want glow color", got)
+	}
+}

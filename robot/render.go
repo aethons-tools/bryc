@@ -16,5 +16,7 @@ func Render(s Spec, size int) image.Image {
 	}
 	drawBody(c, s, headBox)
 	drawHead(c, s, headBox)
+	eyeParts[s.Eyes](c, s, headBox)
+	mouthParts[s.Mouth](c, s, headBox)
 	return c.dc.Image()
 }

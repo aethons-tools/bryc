@@ -25,14 +25,25 @@ var headPaths = map[string]func(dc *gg.Context, b Layout){
 		dc.ClosePath()
 	},
 	"trapezoid": func(dc *gg.Context, b Layout) {
-		const inset = 60
 		dc.NewSubPath()
-		dc.MoveTo(b.X+inset, b.Y)
-		dc.LineTo(b.X+b.W-inset, b.Y)
+		dc.MoveTo(b.X+trapezoidInset, b.Y)
+		dc.LineTo(b.X+b.W-trapezoidInset, b.Y)
 		dc.LineTo(b.X+b.W, b.Y+b.H)
 		dc.LineTo(b.X, b.Y+b.H)
 		dc.ClosePath()
 	},
+}
+
+// trapezoidInset is how far the trapezoid head's top corners sit inside the box.
+const trapezoidInset = 60
+
+// sideInset is how far the head's side edge sits inside the box at height y,
+// so side-mounted parts such as ears stay attached to slanted heads.
+func sideInset(head string, b Layout, y float64) float64 {
+	if head != "trapezoid" {
+		return 0
+	}
+	return trapezoidInset * (1 - (y-b.Y)/b.H)
 }
 
 func drawHead(c *canvas, s Spec, b Layout) {

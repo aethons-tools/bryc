@@ -69,7 +69,7 @@ func TestParseQueryAggregatesProblems(t *testing.T) {
 		t.Errorf("got %d problems, want 7:\n%v", len(ve.Problems), err)
 	}
 	for _, want := range []string{
-		`head: unknown value "blob" (allowed: square, rounded, dome, trapezoid)`,
+		`head: unknown value "blob" (allowed: square, rounded, dome, inverted-dome, trapezoid, inverted-trapezoid)`,
 		`body: "red" is not a #rrggbb color`,
 		`rivets: "maybe" is not true or false`,
 		`size: 10 is outside 64-2048`,
@@ -105,12 +105,12 @@ func TestFacets(t *testing.T) {
 		names = append(names, f.Name)
 		byName[f.Name] = f
 	}
-	want := "head eyes eyecount eyesize mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
+	want := "head tall eyes eyecount eyesize mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
 	if strings.Join(names, " ") != want {
 		t.Errorf("facet order = %v", names)
 	}
 	enums := map[string][]string{
-		"head":       HeadValues,
+		"head":       {"square", "rounded", "dome", "inverted-dome", "trapezoid", "inverted-trapezoid"},
 		"mouth":      {"grille", "slot", "line", "jaw"},
 		"expression": {"flat", "smile", "frown"},
 		"eyecount":   {"2", "4", "6"},

@@ -9,6 +9,7 @@ robot can be reproduced.
 ```bash
 go run ./cmd/bryc                                  # a random robot → bryc-<seed>.png
 go run ./cmd/bryc --head=dome --palette=mint       # pin some parts
+go run ./cmd/bryc --head=inverted-dome --tall=true  # heads: square rounded dome inverted-dome trapezoid inverted-trapezoid
 go run ./cmd/bryc --shoulders=-80                  # spiky shoulders (-100..100, 0 = square)
 go run ./cmd/bryc --mouth=jaw --expression=smile   # mouths: grille slot line jaw; flat smile frown
 go run ./cmd/bryc --face=2                          # face position -1 (low) .. 2 (high and compact)

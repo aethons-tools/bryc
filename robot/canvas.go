@@ -24,9 +24,29 @@ type Layout struct{ X, Y, W, H float64 }
 // CX is the horizontal center of the box.
 func (b Layout) CX() float64 { return b.X + b.W/2 }
 
-// headBox is where every head shape is drawn; other parts are placed
-// relative to it so all combinations line up.
-var headBox = Layout{X: 250, Y: 260, W: 500, H: 460}
+// headBox is where a normal-height head is drawn, and tallHeadBox a tall
+// one: the same bottom, extended upward. Parts on the head's top (antenna,
+// top panel seam) follow its top; the face, ears and rivets are anchored to
+// its bottom (see faceBox), so a tall head reads as a taller forehead.
+var (
+	headBox     = Layout{X: 250, Y: 260, W: 500, H: 460}
+	tallHeadBox = Layout{X: 250, Y: 180, W: 500, H: 540}
+)
+
+// headLayout is the box s's head is drawn in.
+func headLayout(s Spec) Layout {
+	if *s.Tall {
+		return tallHeadBox
+	}
+	return headBox
+}
+
+// faceBox is the normal-height box aligned to b's bottom. Face features,
+// ears and rivets are placed as fractions of it, so they sit at the same
+// distance from the bottom of normal and tall heads.
+func faceBox(b Layout) Layout {
+	return Layout{X: b.X, Y: b.Y + b.H - headBox.H, W: b.W, H: headBox.H}
+}
 
 // part draws one facet variant.
 type part func(c *canvas, s Spec, b Layout)

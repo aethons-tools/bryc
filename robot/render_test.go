@@ -134,15 +134,16 @@ func TestRenderJaw(t *testing.T) {
 	for _, head := range HeadValues {
 		s := Resolve(Spec{Head: head, Mouth: "jaw", Expression: "flat", Face: &neutral, Body: "#3366cc",
 			Rivets: &no, Panels: &no, Blush: &no}, 3)
+		b := headLayout(s)
 		img := Render(s, 1000)
 		for _, p := range []struct {
 			name string
 			x, y float64
 			want color.NRGBA
 		}{
-			{"chin", 360, 680, jaw},
-			{"cheek band", 280, 600, jaw},
-			{"face inside the U", 330, 580, body},
+			{"chin", b.CX() - 60, 680, jaw},
+			{"cheek band", leftEdge(head, b, 600) + jawBand/2, 600, jaw},
+			{"face inside the U", leftEdge(head, b, 580) + jawBand + 20, 580, body},
 		} {
 			if got := pixel(img, 1000, p.x, p.y); !near(got, p.want) {
 				t.Errorf("head %s: %s (%v,%v) = %v, want %v", head, p.name, p.x, p.y, got, p.want)
@@ -371,5 +372,75 @@ func TestRenderEyeSizeShrinksEyes(t *testing.T) {
 	}
 	if got := pixel(render("1"), 1000, x, ey); !near(got, body) {
 		t.Errorf("size 1: %v, want face", got)
+	}
+}
+
+// TestRenderHeadShapes spot-checks each head's outline: a point inside the
+// shape is head color, a point the shape cuts away is background.
+func TestRenderHeadShapes(t *testing.T) {
+	no := false
+	body, bg := color.NRGBA{0x33, 0x66, 0xcc, 0xff}, color.NRGBA{0xff, 0, 0, 0xff}
+	cases := []struct {
+		head    string
+		tall    bool
+		in, out [2]float64
+	}{
+		{"inverted-dome", false, [2]float64{275, 290}, [2]float64{275, 700}},      // square top, round bottom
+		{"inverted-trapezoid", false, [2]float64{262, 280}, [2]float64{262, 700}}, // wide top, narrow bottom
+		{"dome", false, [2]float64{262, 700}, [2]float64{262, 290}},               // round top, square bottom
+		{"square", true, [2]float64{500, 215}, [2]float64{500, 215 + 400}},        // tall reaches y 180
+		{"square", false, [2]float64{500, 300}, [2]float64{500, 215}},             // normal starts at y 260
+		{"inverted-dome", true, [2]float64{275, 215}, [2]float64{275, 700}},
+	}
+	for _, c := range cases {
+		tall := c.tall
+		s := Resolve(Spec{Head: c.head, Tall: &tall, Eyes: "led", Mouth: "line", Face: &neutral,
+			Antenna: "none", Ears: "none", Body: "#3366cc", Background: "#ff0000",
+			Rivets: &no, Panels: &no, Blush: &no}, 3)
+		img := Render(s, 1000)
+		if got := pixel(img, 1000, c.in[0], c.in[1]); !near(got, body) {
+			t.Errorf("%s tall=%v: inside %v = %v, want head", c.head, c.tall, c.in, got)
+		}
+		if c.head == "square" && c.tall {
+			continue // the "out" point is inside a tall square head; covered by the normal case
+		}
+		if got := pixel(img, 1000, c.out[0], c.out[1]); !near(got, bg) {
+			t.Errorf("%s tall=%v: outside %v = %v, want background", c.head, c.tall, c.out, got)
+		}
+	}
+}
+
+// TestRenderRivetsOnHead checks rivets land inside every head shape, including
+// the ones that narrow toward the bottom.
+func TestRenderRivetsOnHead(t *testing.T) {
+	for _, head := range HeadValues {
+		b := headLayout(Spec{Head: head, Tall: new(bool)})
+		for _, p := range rivetCenters(Spec{Head: head, Tall: new(bool)}, b) {
+			if edge := leftEdge(head, b, p[1]); p[0] < b.CX() && p[0]-rivetRadius < edge+outline/2 {
+				t.Errorf("%s: rivet at %v overlaps the edge at x=%v", head, p, edge)
+			}
+		}
+	}
+}
+
+// TestRivetsClearGrille checks no rivet overlaps the grille (the widest
+// mouth) on any head, height or face position.
+func TestRivetsClearGrille(t *testing.T) {
+	const reach = rivetRadius + 2.5 // rivet plus its outline
+	for _, head := range HeadValues {
+		for _, tall := range []bool{false, true} {
+			for face := FaceMin; face <= FaceMax; face++ {
+				s := Spec{Head: head, Tall: &tall, Face: &face}
+				b := headLayout(s)
+				_, my := facePos(s, b)
+				gx0, gx1 := b.CX()-120-outline/2, b.CX()+120+outline/2
+				gy0, gy1 := my-grilleHalfHeight-maxBend-outline/2, my+grilleHalfHeight+maxBend+outline/2
+				for _, p := range rivetCenters(s, b) {
+					if p[0]+reach > gx0 && p[0]-reach < gx1 && p[1]+reach > gy0 && p[1]-reach < gy1 {
+						t.Errorf("%s tall=%v face=%d: rivet %v overlaps the grille", head, tall, face, p)
+					}
+				}
+			}
+		}
 	}
 }

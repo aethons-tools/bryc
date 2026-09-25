@@ -44,7 +44,7 @@ const (
 
 // Allowed values for each enum facet.
 var (
-	HeadValues       = []string{"square", "rounded", "dome", "trapezoid"}
+	HeadValues       = []string{"square", "rounded", "dome", "inverted-dome", "trapezoid", "inverted-trapezoid"}
 	EyesValues       = []string{"round", "visor", "cyclops", "led"}
 	EyeCountValues   = []string{"2", "4", "6"} // round eyes only: 1, 2 or 3 stacked pairs
 	EyeSizeValues    = []string{"1", "2", "3"} // round eyes only, capped by the eye count
@@ -59,7 +59,7 @@ var (
 type Spec struct {
 	Head, Eyes, EyeCount, EyeSize, Mouth, Expression, Antenna, Ears string
 	Face, Shoulders                                                 *int
-	Rivets, Panels, Blush                                           *bool
+	Tall, Rivets, Panels, Blush                                     *bool
 	// Colors are "#rrggbb"; Background may also be "none" (transparent).
 	Body, Accent, Glow, Background string
 }
@@ -81,6 +81,7 @@ type field struct {
 func (s *Spec) fields() []field {
 	return []field{
 		{name: "head", kind: KindEnum, values: HeadValues, str: &s.Head},
+		{name: "tall", kind: KindBool, flag: &s.Tall},
 		{name: "eyes", kind: KindEnum, values: EyesValues, str: &s.Eyes},
 		{name: "eyecount", kind: KindEnum, values: EyeCountValues, str: &s.EyeCount,
 			dependsOn: &Dependency{Facet: "eyes", Value: "round"}},

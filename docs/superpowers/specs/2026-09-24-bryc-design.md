@@ -49,7 +49,8 @@ Each facet is either **pinned** (set by the user) or **unset** (randomized).
 
 | Facet        | Values                                              |
 |--------------|-----------------------------------------------------|
-| `head`       | `square`, `rounded`, `dome`, `trapezoid`            |
+| `head`       | `square`, `rounded`, `dome`, `inverted-dome` (flat top, round bottom), `trapezoid`, `inverted-trapezoid` (wide top, narrow bottom) |
+| `tall`       | `true`, `false` — head extends 80 units upward; the face, ears and rivets stay anchored to the head's bottom, so it reads as a taller forehead |
 | `eyes`       | `round`, `visor`, `cyclops`, `led`                  |
 | `eyecount`   | `2`, `4`, `6` — round eyes only: 1–3 stacked pairs, smaller as there are more. Resolved either way; the web page greys it out unless the eyes are round |
 | `eyesize`    | `1`, `2`, `3` — round eyes only: radius 25 / 40 / 58, capped at the eye count's size (6 eyes → 1, 4 → 2, 2 → 3); eyes keep their positions |

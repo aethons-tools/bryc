@@ -12,18 +12,40 @@ func drawPanels(c *canvas, s Spec, b Layout) {
 	c.dc.ResetClip()
 }
 
-// drawRivets places four rivets on the lower half of the head, where every
-// head shape is wide enough to hold them.
+const (
+	rivetRadius = 12.0
+	rivetInset  = 45.0 // distance in from the head's edge
+	// maxRivetEdge is how far in from the box side the head's edge may be at
+	// the lower rivets' height; on heads that narrow more than this toward
+	// the bottom (the inverted dome), the lower rivets move up instead of
+	// crowding the mouth.
+	maxRivetEdge = 60.0
+)
+
+// rivetCenters places four rivets on the lower part of the head, set in from
+// its edge so they stay on heads that narrow toward the bottom.
+func rivetCenters(s Spec, b Layout) [][2]float64 {
+	f := faceBox(b)
+	lower := f.Y + f.H - 50
+	for lower > f.Y+f.H*0.55 && leftEdge(s.Head, b, lower)-b.X > maxRivetEdge {
+		lower -= 2
+	}
+	var centers [][2]float64
+	for _, y := range []float64{f.Y + f.H*0.55, lower} {
+		in := leftEdge(s.Head, b, y) - b.X + rivetInset
+		centers = append(centers, [2]float64{b.X + in, y}, [2]float64{b.X + b.W - in, y})
+	}
+	return centers
+}
+
 func drawRivets(c *canvas, s Spec, b Layout) {
-	for _, y := range []float64{b.Y + b.H*0.55, b.Y + b.H - 50} {
-		for _, x := range []float64{b.X + 45, b.X + b.W - 45} {
-			c.dc.DrawCircle(x, y, 12)
-			c.dc.SetColor(metal)
-			c.dc.FillPreserve()
-			c.dc.SetColor(ink)
-			c.lw(5)
-			c.dc.Stroke()
-		}
+	for _, p := range rivetCenters(s, b) {
+		c.dc.DrawCircle(p[0], p[1], rivetRadius)
+		c.dc.SetColor(metal)
+		c.dc.FillPreserve()
+		c.dc.SetColor(ink)
+		c.lw(5)
+		c.dc.Stroke()
 	}
 }
 

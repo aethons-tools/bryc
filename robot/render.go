@@ -14,20 +14,21 @@ func Render(s Spec, size int) image.Image {
 		c.dc.SetColor(parseHex(s.Background))
 		c.dc.Clear()
 	}
-	drawBody(c, s, headBox)
-	earParts[s.Ears](c, s, headBox)
-	drawHead(c, s, headBox)
+	head := headLayout(s)
+	drawBody(c, s, head)
+	earParts[s.Ears](c, s, head)
+	drawHead(c, s, head)
 	if *s.Panels {
-		drawPanels(c, s, headBox)
+		drawPanels(c, s, head)
 	}
 	if *s.Rivets {
-		drawRivets(c, s, headBox)
+		drawRivets(c, s, head)
 	}
-	eyeParts[s.Eyes](c, s, headBox)
-	mouthParts[s.Mouth](c, s, headBox)
+	eyeParts[s.Eyes](c, s, head)
+	mouthParts[s.Mouth](c, s, head)
 	if *s.Blush {
-		drawBlush(c, s, headBox)
+		drawBlush(c, s, head)
 	}
-	antennaParts[s.Antenna](c, s, headBox)
+	antennaParts[s.Antenna](c, s, head)
 	return c.dc.Image()
 }

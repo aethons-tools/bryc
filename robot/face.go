@@ -1,6 +1,6 @@
 package robot
 
-// Face layout, as fractions of the head box height from its top. Only the
+// Face layout, as fractions of the face box (see faceBox) from its top. Only the
 // eyes, mouth (including the jaw) and blush move with the face position;
 // head hardware (ears, antenna, rivets, panels) stays put.
 //
@@ -21,10 +21,12 @@ const (
 // that narrow toward the top (dome, trapezoid) rise less, so the widest eye
 // style (the visor) and the tallest (the cyclops) always fit inside.
 var raisedEyes = map[string]float64{
-	"square":    0.3025,
-	"rounded":   0.3025,
-	"dome":      0.3475,
-	"trapezoid": 0.3475,
+	"square":             0.3025,
+	"rounded":            0.3025,
+	"dome":               0.3475,
+	"trapezoid":          0.3475,
+	"inverted-dome":      0.3025, // flat, full-width top
+	"inverted-trapezoid": 0.3025, // widest at the top
 }
 
 // facePos returns the eye and mouth center heights for s's face position.
@@ -39,7 +41,8 @@ func facePos(s Spec, b Layout) (eyeY, mouthY float64) {
 		eyes = raisedEyes[s.Head]
 		mouth = eyes + tightMouthGap
 	}
-	return b.Y + b.H*eyes, b.Y + b.H*mouth
+	f := faceBox(b)
+	return f.Y + f.H*eyes, f.Y + f.H*mouth
 }
 
 // blushY is the height of the cheek blush, between the eyes and the mouth.

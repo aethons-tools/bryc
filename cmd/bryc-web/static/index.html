@@ -28,7 +28,7 @@
   form { display: grid; gap: 10px; align-content: start; }
   label.row { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; }
   .row > span { color: var(--muted); text-transform: capitalize; }
-  select, input[type=text] { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line);
+  select, input[type=text], input[type=number] { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line);
     background: var(--bg); color: var(--ink); width: 100%; }
   .color { display: flex; gap: 10px; align-items: center; }
   .color input[type=color] { width: 44px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
@@ -53,6 +53,7 @@
   <form id="controls" autocomplete="off">
     <label class="row"><span>Seed</span><input id="seed" type="text" inputmode="numeric" placeholder="random"></label>
     <label class="row"><span>Palette</span><select id="palette"><option value="">none</option></select></label>
+    <label class="row"><span>Size</span><input id="size" type="number" step="1"></label>
     <!-- facet controls are generated from /options.json -->
   </form>
 </main>
@@ -60,10 +61,13 @@
 const form = document.getElementById('controls');
 const seedInput = document.getElementById('seed');
 const paletteSelect = document.getElementById('palette');
+const sizeInput = document.getElementById('size');
 const img = document.getElementById('robot');
 const errorBox = document.getElementById('error');
 const download = document.getElementById('download');
-const controls = []; // {name, read() -> string ('' = random), write(string)}
+// {name, read() -> string ('' = random), write(string), show(resolved value)}
+const controls = [];
+let defaultSize = 512;
 let blobURL = null;
 let ticket = 0;
 
@@ -116,6 +120,9 @@ function addFacet(f) {
         if (v && v !== 'none') picker.value = v;
         sync();
       },
+      // While random, keep the picker on the robot's current color so
+      // pinning starts from what you see instead of black.
+      show: (v) => { if (rand.checked && /^#[0-9a-f]{6}$/.test(v)) picker.value = v; },
     });
     rand.checked = true;
     sync();
@@ -126,7 +133,7 @@ function addFacet(f) {
     ? [['', 'random'], ['true', 'on'], ['false', 'off']]
     : [['', 'random'], ...f.values.map(v => [v, v])];
   const sel = selectOf(pairs);
-  controls.push({ name: f.name, read: () => sel.value, write: (v) => { sel.value = v || ''; } });
+  controls.push({ name: f.name, read: () => sel.value, write: (v) => { sel.value = v || ''; }, show: () => {} });
   form.append(row(f.name, sel));
 }
 
@@ -134,6 +141,8 @@ function currentQuery() {
   const q = new URLSearchParams();
   for (const c of controls) { const v = c.read(); if (v) q.set(c.name, v); }
   if (paletteSelect.value) q.set('palette', paletteSelect.value);
+  const size = sizeInput.value.trim();
+  if (size && size !== String(defaultSize)) q.set('size', size);
   const seed = seedInput.value.trim();
   if (seed) q.set('seed', seed);
   return q;
@@ -155,6 +164,8 @@ async function update() {
   const seed = res.headers.get('X-Bryc-Seed');
   seedInput.value = seed;
   q.set('seed', seed);
+  const resolved = new URLSearchParams(res.headers.get('X-Bryc-Spec') || '');
+  for (const c of controls) c.show(resolved.get(c.name) || '');
   history.replaceState(null, '', '?' + q);
   if (blobURL) URL.revokeObjectURL(blobURL);
   blobURL = URL.createObjectURL(blob);
@@ -175,10 +186,14 @@ form.addEventListener('submit', (e) => { e.preventDefault(); update(); });
 (async () => {
   const opts = await (await fetch('/options.json')).json();
   for (const p of opts.palettes) paletteSelect.add(new Option(p, p));
+  defaultSize = opts.size.default;
+  sizeInput.min = opts.size.min;
+  sizeInput.max = opts.size.max;
   for (const f of opts.facets) addFacet(f);
   const params = new URLSearchParams(location.search);
   for (const c of controls) c.write(params.get(c.name) || '');
   paletteSelect.value = params.get('palette') || '';
+  sizeInput.value = params.get('size') || defaultSize;
   seedInput.value = params.get('seed') || '';
   update();
 })();

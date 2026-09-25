@@ -287,3 +287,19 @@ func TestRenderJawFollowsFace(t *testing.T) {
 }
 
 func ptr(n int) *int { return &n }
+
+// TestRenderRoundEyeGlow checks the round eyes: a pale hot spot in the center
+// and the glow drawn over the outline, so the outline is tinted, not pure ink.
+func TestRenderRoundEyeGlow(t *testing.T) {
+	glow := color.NRGBA{0, 255, 0, 255}
+	s := Resolve(Spec{Eyes: "round", Face: &neutral, Glow: "#00ff00"}, 4)
+	ey, _ := facePos(s, headBox)
+	img := Render(s, 1000)
+	x := headBox.CX() + eyeGap // right eye; the glint sits up-left of center
+	if got, want := pixel(img, 1000, x, ey), hotSpotColor(glow); !near(got, want) {
+		t.Errorf("center = %v, want hot spot %v", got, want)
+	}
+	if got := pixel(img, 1000, x+roundEyeRadius, ey); near(got, ink) {
+		t.Errorf("outline = %v, want tinted by the glow", got)
+	}
+}

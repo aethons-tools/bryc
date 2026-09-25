@@ -4,6 +4,8 @@ import "image/color"
 
 const eyeGap = 110 // distance from the head's center line to each eye
 
+const roundEyeRadius = 58
+
 // The widest and tallest eye styles, which bound how far the face can move.
 const (
 	visorHalfWidth = 190 // half the visor's width
@@ -18,9 +20,11 @@ var eyeParts = map[string]part{
 	"round": func(c *canvas, s Spec, b Layout) {
 		glow, y := parseHex(s.Glow), eyeY(s, b)
 		for _, x := range eyeXs(b) {
-			halo(c, x, y, 58, glow)
-			c.dc.DrawCircle(x, y, 58)
+			c.dc.DrawCircle(x, y, roundEyeRadius)
 			c.fillOutlined(glow)
+			// The glow goes over the outline, like a lit bulb.
+			halo(c, x, y, roundEyeRadius, glow)
+			hotSpot(c, x, y, glow)
 			highlight(c, x-18, y-18, 16)
 		}
 	},
@@ -55,7 +59,6 @@ const (
 	cyclopsRing     = 12.0 // width of the metal ring inside the outline
 	cyclopsCore     = 18.0 // radius of the solid glow core
 	cyclopsGlowFade = 60.0 // radius the glow fades out by
-	cyclopsHotSpot  = 7.0  // radius of the pale center of the core
 )
 
 func drawHAL(c *canvas, s Spec, b Layout) {
@@ -77,16 +80,28 @@ func drawHAL(c *canvas, s Spec, b Layout) {
 	c.dc.DrawCircle(x, y, cyclopsCore)
 	c.dc.SetColor(glow)
 	c.dc.Fill()
-	c.dc.DrawCircle(x, y, cyclopsHotSpot)
-	c.dc.SetColor(mix(glow, color.NRGBA{255, 255, 255, 255}, 0.6))
-	c.dc.Fill()
+	hotSpot(c, x, y, glow)
 	// A faint glint on the glass.
 	c.dc.DrawCircle(x-34, y-34, 14)
 	c.dc.SetColor(color.NRGBA{255, 255, 255, 110})
 	c.dc.Fill()
 }
 
-// halo paints a soft glow behind an eye as stacked translucent discs.
+// hotSpotRadius is the pale center of a lit eye (cyclops and round eyes).
+const hotSpotRadius = 7.0
+
+func hotSpotColor(glow color.NRGBA) color.NRGBA {
+	return mix(glow, color.NRGBA{255, 255, 255, 255}, 0.6)
+}
+
+// hotSpot paints the pale center of a lit eye.
+func hotSpot(c *canvas, x, y float64, glow color.NRGBA) {
+	c.dc.DrawCircle(x, y, hotSpotRadius)
+	c.dc.SetColor(hotSpotColor(glow))
+	c.dc.Fill()
+}
+
+// halo paints a soft glow around an eye as stacked translucent discs.
 func halo(c *canvas, x, y, r float64, glow color.NRGBA) {
 	for i := 3; i >= 1; i-- {
 		c.dc.DrawCircle(x, y, r+float64(i)*14)

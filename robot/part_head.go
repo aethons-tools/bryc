@@ -114,6 +114,27 @@ func leftEdge(head string, b Layout, y float64) float64 {
 	return x
 }
 
+// headTop is the y of the head's top outline at x, including the dome's cap
+// and the rounded top corners (the upward bow of flat top edges is ignored,
+// which only makes this conservative).
+func headTop(head string, b Layout, x float64) float64 {
+	dx := math.Abs(x - b.CX())
+	var r float64
+	switch head {
+	case "dome":
+		r = b.W / 2
+	case "square", "rounded":
+		r = cornerRadius[head]
+	default:
+		return b.Y
+	}
+	if cx := b.W/2 - r; dx > cx {
+		d := dx - cx
+		return b.Y + r - math.Sqrt(max(0, r*r-d*d))
+	}
+	return b.Y
+}
+
 func drawHead(c *canvas, s Spec, b Layout) {
 	headPaths[s.Head](c.dc, b)
 	c.fillOutlined(parseHex(s.Body))

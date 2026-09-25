@@ -60,7 +60,7 @@ var (
 type Spec struct {
 	Head, Eyes, EyeCount, EyeSize, EyeStyle, Mouth, Expression, Antenna, Ears string
 	Face, Shoulders                                                           *int
-	Tall, Rivets, Panels, Blush                                               *bool
+	Tall, Eyelashes, Rivets, Panels, Blush                                    *bool
 	// Colors are "#rrggbb"; Background may also be "none" (transparent).
 	Body, Accent, Glow, Background string
 }
@@ -90,6 +90,7 @@ func (s *Spec) fields() []field {
 			dependsOn: roundFamily},
 		{name: "eyestyle", kind: KindEnum, values: EyeStyleValues, str: &s.EyeStyle,
 			dependsOn: roundFamily},
+		{name: "eyelashes", kind: KindBool, flag: &s.Eyelashes, dependsOn: roundFamily},
 		{name: "mouth", kind: KindEnum, values: MouthValues, str: &s.Mouth},
 		{name: "expression", kind: KindEnum, values: ExpressionValues, str: &s.Expression},
 		{name: "face", kind: KindRange, min: FaceMin, max: FaceMax, num: &s.Face},

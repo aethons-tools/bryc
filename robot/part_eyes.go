@@ -91,7 +91,8 @@ func eyeTilt(s Spec, b Layout, x float64) float64 {
 func drawRoundFamily(c *canvas, s Spec, b Layout) {
 	glow, r := parseHex(s.Glow), roundEyeR(s)
 	draw, g := eyeStyles[s.EyeStyle], glintFor(s, r)
-	for _, p := range roundEyeCenters(s, b) {
+	centers := roundEyeCenters(s, b)
+	for _, p := range centers {
 		x, y := p[0], p[1]
 		c.dc.Push()
 		c.dc.RotateAbout(eyeTilt(s, b, x), x, y)
@@ -103,7 +104,63 @@ func drawRoundFamily(c *canvas, s Spec, b Layout) {
 		c.dc.DrawCircle(x+g.dx, y+g.dy, g.r)
 		c.dc.SetColor(color.NRGBA{255, 255, 255, g.alpha})
 		c.dc.Fill()
+		if *s.Eyelashes && len(centers) > 1 {
+			l := lashFor(s, b, x, y, r)
+			c.dc.MoveTo(l.start[0], l.start[1])
+			c.dc.QuadraticTo(l.ctrl[0], l.ctrl[1], l.end[0], l.end[1])
+			c.strokeWith(ink, l.width)
+		}
 	}
+}
+
+// lash is one eyelash: a curved ink stroke from start to end via ctrl.
+type lash struct {
+	start, ctrl, end [2]float64
+	width            float64
+}
+
+// Eyelash geometry, relative to the eye's radius: where on the eye's edge it
+// attaches (measured up from the outer side), how long it is, and how thick.
+const (
+	lashAttach = 50 * math.Pi / 180
+	lashLength = 0.4
+	lashWidth  = 0.16
+)
+
+// lashFor is the eyelash for the eye of radius r centered at (x, y): it
+// leaves the eye's upper-outer edge (outer is away from the head's center
+// line; a centered eye counts as left) and flicks up and out. It follows the
+// eye's shape: attached to an oval's edge and turned with a focused eye's
+// tilt, but not squashed.
+func lashFor(s Spec, b Layout, x, y, r float64) lash {
+	out := 1.0
+	if x <= b.CX() {
+		out = -1
+	}
+	aspect := 1.0
+	if s.Eyes != "round" {
+		aspect = ovalAspect
+	}
+	tilt := eyeTilt(s, b, x)
+	sin, cos := math.Sin(tilt), math.Cos(tilt)
+	// at maps a point in the eye's own frame (x out, y down) to the canvas.
+	at := func(dx, dy float64) [2]float64 {
+		return [2]float64{x + dx*cos - dy*sin, y + dx*sin + dy*cos}
+	}
+	ax, ay := out*r*math.Cos(lashAttach), -r*math.Sin(lashAttach)*aspect
+	L := lashLength * r
+	return lash{
+		start: at(ax, ay),
+		ctrl:  at(ax+out*0.15*L, ay-0.75*L),
+		end:   at(ax+out*0.85*L, ay-0.85*L),
+		width: lashWidth * r,
+	}
+}
+
+// quadAt is the point at t along the quadratic curve p0 -> p1 -> p2.
+func quadAt(p0, p1, p2 [2]float64, t float64) (float64, float64) {
+	u := 1 - t
+	return u*u*p0[0] + 2*u*t*p1[0] + t*t*p2[0], u*u*p0[1] + 2*u*t*p1[1] + t*t*p2[1]
 }
 
 // glint is the white shine on an eye's glass: its offset from the eye's

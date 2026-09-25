@@ -105,7 +105,7 @@ func TestFacets(t *testing.T) {
 		names = append(names, f.Name)
 		byName[f.Name] = f
 	}
-	want := "head tall eyes eyecount eyesize eyestyle mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
+	want := "head tall eyes eyecount eyesize eyestyle eyelashes mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
 	if strings.Join(names, " ") != want {
 		t.Errorf("facet order = %v", names)
 	}
@@ -129,7 +129,10 @@ func TestFacets(t *testing.T) {
 			t.Errorf("%s facet = %+v", name, f)
 		}
 	}
-	for _, name := range []string{"eyecount", "eyesize", "eyestyle"} {
+	if byName["eyelashes"].Kind != KindBool {
+		t.Errorf("eyelashes facet = %+v, want bool", byName["eyelashes"])
+	}
+	for _, name := range []string{"eyecount", "eyesize", "eyestyle", "eyelashes"} {
 		want := &Dependency{Facet: "eyes", Values: []string{"round", "oval", "focused"}}
 		if d := byName[name].DependsOn; !reflect.DeepEqual(d, want) {
 			t.Errorf("%s dependsOn = %+v, want %+v", name, d, want)

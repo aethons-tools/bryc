@@ -680,3 +680,77 @@ func TestRenderGlintsShareOneLight(t *testing.T) {
 		}
 	}
 }
+
+// TestLashGeometry checks each lash leaves the eye's upper-outer edge and
+// ends further up and further out: left on left eyes, right on right eyes,
+// including tilted focused eyes.
+func TestLashGeometry(t *testing.T) {
+	for _, eyes := range []string{"round", "oval", "focused"} {
+		s := Spec{Eyes: eyes, EyeCount: "2", EyeSize: "3", Face: &neutral}
+		r := roundEyeR(s)
+		for _, p := range roundEyeCenters(s, headBox) {
+			l := lashFor(s, headBox, p[0], p[1], r)
+			out := 1.0
+			if p[0] < headBox.CX() {
+				out = -1
+			}
+			if (l.start[0]-p[0])*out <= 0 || l.start[1] >= p[1] {
+				t.Errorf("%s eye at %v: lash starts at %v, want upper-outer", eyes, p, l.start)
+			}
+			if (l.end[0]-l.start[0])*out <= 0 || l.end[1] >= l.start[1] {
+				t.Errorf("%s eye at %v: lash runs %v -> %v, want up and out", eyes, p, l.start, l.end)
+			}
+		}
+	}
+}
+
+// TestRenderEyelashes checks lashes are drawn only when on, and only when
+// there is more than one eye.
+func TestRenderEyelashes(t *testing.T) {
+	no, yes := false, true
+	for _, c := range []struct {
+		count string
+		on    *bool
+		want  bool
+	}{{"2", &yes, true}, {"2", &no, false}, {"6", &yes, true}, {"1", &yes, false}} {
+		s := Resolve(Spec{Eyes: "round", EyeCount: c.count, EyeStyle: "dead", Eyelashes: c.on,
+			Face: &neutral, Body: "#3366cc", Blush: &no}, 4)
+		r := roundEyeR(s)
+		img := Render(s, 1000)
+		// Probe the middle of where the first eye's lash would be; for a
+		// single eye, where it would be if it had one.
+		p := roundEyeCenters(s, headBox)[0]
+		l := lashFor(s, headBox, p[0]-1, p[1], r) // just left of center: the left-eye lash
+		mx, my := quadAt(l.start, l.ctrl, l.end, 0.5)
+		if got := near(pixel(img, 1000, mx, my), ink); got != c.want {
+			t.Errorf("count %s eyelashes=%v: lash drawn = %v, want %v", c.count, *c.on, got, c.want)
+		}
+	}
+}
+
+// TestLashesInsideHead checks every lash tip stays inside the head, clear of
+// its outline, on every head, height, face position and eye layout.
+func TestLashesInsideHead(t *testing.T) {
+	for _, head := range HeadValues {
+		for _, tall := range []bool{false, true} {
+			for face := FaceMin; face <= FaceMax; face++ {
+				for _, eyes := range []string{"round", "oval", "focused"} {
+					for _, count := range []string{"2", "4", "6"} {
+						s := Spec{Head: head, Tall: &tall, Face: &face, Eyes: eyes, EyeCount: count, EyeSize: "4"}
+						b, r := headLayout(s), roundEyeR(s)
+						for _, p := range roundEyeCenters(s, b) {
+							l := lashFor(s, b, p[0], p[1], r)
+							x, y := l.end[0], l.end[1]
+							reach := l.width/2 + outline/2
+							left := leftEdge(head, b, y)
+							if x-reach < left || x+reach > 2*b.CX()-left || y-reach < headTop(head, b, x) {
+								t.Errorf("%s tall=%v face=%d %s x%s: lash tip %v leaves the head",
+									head, tall, face, eyes, count, l.end)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

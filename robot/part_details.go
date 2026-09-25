@@ -1,14 +1,35 @@
 package robot
 
+// panelShade is the seam color relative to the body color.
+const panelShade = 0.6
+
+// panelSeam is one seam: its height where it meets the head's sides, and
+// which way it bows on heads that bow (-1 up, like the top edge; +1 down).
+type panelSeam struct{ y, dir float64 }
+
+func panelSeams(s Spec, b Layout) []panelSeam {
+	return []panelSeam{{b.Y + 90, -1}, {b.Y + b.H - 30, +1}}
+}
+
 // drawPanels draws two seam lines across the head, clipped to its outline.
+// On heads whose edges bow (see bowTo), the seams bow the same way as the
+// nearest edge, by the same fraction of the head's width at their height.
 func drawPanels(c *canvas, s Spec, b Layout) {
 	headPaths[s.Head](c.dc, b)
 	c.dc.Clip()
-	c.dc.MoveTo(b.X, b.Y+90)
-	c.dc.LineTo(b.X+b.W, b.Y+90)
-	c.dc.MoveTo(b.X, b.Y+b.H-30)
-	c.dc.LineTo(b.X+b.W, b.Y+b.H-30)
-	c.strokeWith(shade(parseHex(s.Body), 0.6), 8)
+	for _, seam := range panelSeams(s, b) {
+		// Run from edge to edge (a little past, the clip trims it) so the bow
+		// is sized to the head's width at this height.
+		x0 := leftEdge(s.Head, b, seam.y)
+		x1 := 2*b.CX() - x0
+		c.dc.MoveTo(x0, seam.y)
+		if headBows[s.Head] {
+			bowTo(c.dc, x0, x1, seam.y, seam.dir)
+		} else {
+			c.dc.LineTo(x1, seam.y)
+		}
+	}
+	c.strokeWith(shade(parseHex(s.Body), panelShade), 8)
 	c.dc.ResetClip()
 }
 

@@ -52,6 +52,9 @@ var headPaths = map[string]func(dc *gg.Context, b Layout){
 	},
 }
 
+// headBows says which heads' horizontal edges bow (see bowTo).
+var headBows = map[string]bool{"dome": true, "inverted-dome": true, "trapezoid": true, "inverted-trapezoid": true}
+
 // bowRatio is how far a cylinder-like head's horizontal edge bows out at its
 // middle, as a fraction of the edge's width, so the head reads as a cylinder
 // (or cone) seen straight on: narrower ends bow proportionally less.

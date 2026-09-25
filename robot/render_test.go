@@ -507,3 +507,27 @@ func TestRenderCylinderEdgesScale(t *testing.T) {
 		t.Errorf("bowed bottom at 200px = %v, want head", got)
 	}
 }
+
+// TestRenderPanelSeamsBow checks the panel seams follow the head: on bowed
+// heads they bow like the nearest edge (upper seam up, lower seam down), on
+// flat heads they stay straight.
+func TestRenderPanelSeamsBow(t *testing.T) {
+	no, yes := false, true
+	for _, head := range []string{"trapezoid", "inverted-dome", "square"} {
+		s := Resolve(Spec{Head: head, Tall: &no, Antenna: "none", Eyes: "led", Mouth: "line",
+			Face: &neutral, Body: "#3366cc", Rivets: &no, Panels: &yes, Blush: &no}, 3)
+		b := headLayout(s)
+		seam := shade(parseHex("#3366cc"), panelShade)
+		img := Render(s, 1000)
+		for _, p := range panelSeams(s, b) {
+			x0 := leftEdge(head, b, p.y)
+			sag := 0.0
+			if headBows[head] {
+				sag = p.dir * (b.W - 2*(x0-b.X)) * bowRatio
+			}
+			if got := pixel(img, 1000, b.CX(), p.y+sag); !near(got, seam) {
+				t.Errorf("%s: seam at y=%v (+%v) = %v, want seam color", head, p.y, sag, got)
+			}
+		}
+	}
+}

@@ -396,7 +396,7 @@ func TestRenderHeadShapes(t *testing.T) {
 	}
 	for _, c := range cases {
 		tall := c.tall
-		s := Resolve(Spec{Head: c.head, Tall: &tall, Eyes: "led", Mouth: "line", Face: &neutral,
+		s := Resolve(Spec{Head: c.head, Tall: &tall, Eyes: "round", EyeCount: "2", Mouth: "line", Face: &neutral,
 			Antenna: "none", Ears: "none", Body: "#3366cc", Background: "#ff0000",
 			Rivets: &no, Panels: &no, Blush: &no}, 3)
 		img := Render(s, 1000)
@@ -466,7 +466,7 @@ func TestRenderCylinderEdges(t *testing.T) {
 		{"square", false, false},
 	}
 	for _, c := range cases {
-		s := Resolve(Spec{Head: c.head, Tall: &no, Antenna: "none", Eyes: "led", Mouth: "line",
+		s := Resolve(Spec{Head: c.head, Tall: &no, Antenna: "none", Eyes: "round", EyeCount: "2", Mouth: "line",
 			Face: &neutral, Body: "#3366cc", Background: "#ff0000", Rivets: &no, Panels: &no, Blush: &no}, 3)
 		b := headLayout(s)
 		img := Render(s, 1000)
@@ -498,7 +498,7 @@ func TestRenderCylinderEdges(t *testing.T) {
 func TestRenderCylinderEdgesScale(t *testing.T) {
 	no := false
 	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
-	s := Resolve(Spec{Head: "dome", Tall: &no, Antenna: "none", Eyes: "led", Mouth: "line",
+	s := Resolve(Spec{Head: "dome", Tall: &no, Antenna: "none", Eyes: "round", EyeCount: "2", Mouth: "line",
 		Face: &neutral, Body: "#3366cc", Background: "#ff0000", Rivets: &no, Panels: &no, Blush: &no}, 3)
 	b := headLayout(s)
 	// At 200px one pixel is 5 units; the bowed fill reaches ~5.5 units past
@@ -514,7 +514,7 @@ func TestRenderCylinderEdgesScale(t *testing.T) {
 func TestRenderPanelSeamsBow(t *testing.T) {
 	no, yes := false, true
 	for _, head := range []string{"trapezoid", "inverted-dome", "square"} {
-		s := Resolve(Spec{Head: head, Tall: &no, Antenna: "none", Eyes: "led", Mouth: "line",
+		s := Resolve(Spec{Head: head, Tall: &no, Antenna: "none", Eyes: "round", EyeCount: "2", Mouth: "line",
 			Face: &neutral, Body: "#3366cc", Rivets: &no, Panels: &yes, Blush: &no}, 3)
 		b := headLayout(s)
 		seam := shade(parseHex("#3366cc"), panelShade)

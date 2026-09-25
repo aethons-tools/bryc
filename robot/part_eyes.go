@@ -53,8 +53,6 @@ const (
 
 func eyeY(s Spec, b Layout) float64 { ey, _ := facePos(s, b); return ey }
 
-func eyeXs(b Layout) []float64 { return []float64{b.CX() - eyeGap, b.CX() + eyeGap} }
-
 var eyeParts = map[string]part{
 	"round": func(c *canvas, s Spec, b Layout) {
 		glow := parseHex(s.Glow)
@@ -81,19 +79,6 @@ var eyeParts = map[string]part{
 		highlight(c, b.CX()-bar+30, y-10, 9)
 	},
 	"cyclops": drawHAL,
-	"led": func(c *canvas, s Spec, b Layout) {
-		glow, y := parseHex(s.Glow), eyeY(s, b)
-		for _, x := range eyeXs(b) {
-			halo(c, x, y, 70, haloSpread, glow)
-			c.dc.DrawRectangle(x-55, y-55, 110, 110)
-			c.fillOutlined(glow)
-			c.dc.MoveTo(x, y-55)
-			c.dc.LineTo(x, y+55)
-			c.dc.MoveTo(x-55, y)
-			c.dc.LineTo(x+55, y)
-			c.strokeWith(ink, 6)
-		}
-	},
 }
 
 // Cyclops (HAL-style) geometry: a metal ring around a black lens with the

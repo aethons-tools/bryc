@@ -45,7 +45,7 @@ const (
 // Allowed values for each enum facet.
 var (
 	HeadValues       = []string{"square", "rounded", "dome", "inverted-dome", "trapezoid", "inverted-trapezoid"}
-	EyesValues       = []string{"round", "visor", "cyclops", "led"}
+	EyesValues       = []string{"round", "visor", "cyclops"}
 	EyeCountValues   = []string{"2", "4", "6"} // round eyes only: 1, 2 or 3 stacked pairs
 	EyeSizeValues    = []string{"1", "2", "3"} // round eyes only, capped by the eye count
 	MouthValues      = []string{"grille", "slot", "line", "jaw"}

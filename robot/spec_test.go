@@ -113,6 +113,7 @@ func TestFacets(t *testing.T) {
 		"head":       {"square", "rounded", "dome", "inverted-dome", "trapezoid", "inverted-trapezoid"},
 		"mouth":      {"grille", "slot", "line", "jaw"},
 		"expression": {"flat", "smile", "frown"},
+		"eyes":       {"round", "visor", "cyclops"},
 		"eyecount":   {"2", "4", "6"},
 		"eyesize":    {"1", "2", "3"},
 	}

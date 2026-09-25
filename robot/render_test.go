@@ -446,3 +446,64 @@ func TestRivetsClearGrille(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderCylinderEdges checks the trapezoid and dome families' straight
+// horizontal edges bow outward at their middle (so the heads read as
+// cylinders), while square heads stay flat. One unit past where a flat edge
+// would be, at the edge's midpoint, a flat head shows its outline and a bowed
+// one its fill.
+func TestRenderCylinderEdges(t *testing.T) {
+	no := false
+	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
+	cases := []struct {
+		head        string
+		top, bottom bool // which edges bow
+	}{
+		{"trapezoid", true, true},
+		{"inverted-trapezoid", true, true},
+		{"dome", false, true},
+		{"inverted-dome", true, false},
+		{"square", false, false},
+	}
+	for _, c := range cases {
+		s := Resolve(Spec{Head: c.head, Tall: &no, Antenna: "none", Eyes: "led", Mouth: "line",
+			Face: &neutral, Body: "#3366cc", Background: "#ff0000", Rivets: &no, Panels: &no, Blush: &no}, 3)
+		b := headLayout(s)
+		img := Render(s, 1000)
+		for _, e := range []struct {
+			name string
+			bows bool
+			y    float64
+		}{
+			{"top", c.top, b.Y - 1},
+			{"bottom", c.bottom, b.Y + b.H + 1},
+		} {
+			if e.name == "top" && (c.head == "dome" || c.head == "square") {
+				continue // no straight top edge to test
+			}
+			got := pixel(img, 1000, b.CX(), e.y)
+			if e.bows && !near(got, body) {
+				t.Errorf("%s %s: past the edge = %v, want head (bowed)", c.head, e.name, got)
+			}
+			if !e.bows && near(got, body) {
+				t.Errorf("%s %s: past the edge is head, want flat", c.head, e.name)
+			}
+		}
+	}
+}
+
+// TestRenderCylinderEdgesScale checks the bow is drawn in canvas units, not
+// output pixels: at a small size the bowed bottom's midpoint still bulges
+// past the flat line by about bowRatio of the width.
+func TestRenderCylinderEdgesScale(t *testing.T) {
+	no := false
+	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
+	s := Resolve(Spec{Head: "dome", Tall: &no, Antenna: "none", Eyes: "led", Mouth: "line",
+		Face: &neutral, Body: "#3366cc", Background: "#ff0000", Rivets: &no, Panels: &no, Blush: &no}, 3)
+	b := headLayout(s)
+	// At 200px one pixel is 5 units; the bowed fill reaches ~5.5 units past
+	// the flat line (12.5 bow - 7 outline), so sample 3 units past it.
+	if got := pixel(Render(s, 200), 200, b.CX(), b.Y+b.H+3); !near(got, body) {
+		t.Errorf("bowed bottom at 200px = %v, want head", got)
+	}
+}

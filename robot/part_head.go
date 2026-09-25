@@ -22,13 +22,14 @@ var headPaths = map[string]func(dc *gg.Context, b Layout){
 		dc.LineTo(b.X, b.Y+r)
 		dc.DrawArc(b.CX(), b.Y+r, r, math.Pi, 2*math.Pi)
 		dc.LineTo(b.X+b.W, b.Y+b.H)
+		bowTo(dc, b.X+b.W, b.X, b.Y+b.H, +1)
 		dc.ClosePath()
 	},
 	"inverted-dome": func(dc *gg.Context, b Layout) {
 		r := b.W / 2
 		dc.NewSubPath()
 		dc.MoveTo(b.X, b.Y)
-		dc.LineTo(b.X+b.W, b.Y)
+		bowTo(dc, b.X, b.X+b.W, b.Y, -1)
 		dc.LineTo(b.X+b.W, b.Y+b.H-r)
 		dc.DrawArc(b.CX(), b.Y+b.H-r, r, 0, math.Pi)
 		dc.ClosePath()
@@ -36,19 +37,34 @@ var headPaths = map[string]func(dc *gg.Context, b Layout){
 	"trapezoid": func(dc *gg.Context, b Layout) {
 		dc.NewSubPath()
 		dc.MoveTo(b.X+trapezoidInset, b.Y)
-		dc.LineTo(b.X+b.W-trapezoidInset, b.Y)
+		bowTo(dc, b.X+trapezoidInset, b.X+b.W-trapezoidInset, b.Y, -1)
 		dc.LineTo(b.X+b.W, b.Y+b.H)
-		dc.LineTo(b.X, b.Y+b.H)
+		bowTo(dc, b.X+b.W, b.X, b.Y+b.H, +1)
 		dc.ClosePath()
 	},
 	"inverted-trapezoid": func(dc *gg.Context, b Layout) {
 		dc.NewSubPath()
 		dc.MoveTo(b.X, b.Y)
-		dc.LineTo(b.X+b.W, b.Y)
+		bowTo(dc, b.X, b.X+b.W, b.Y, -1)
 		dc.LineTo(b.X+b.W-trapezoidInset, b.Y+b.H)
-		dc.LineTo(b.X+trapezoidInset, b.Y+b.H)
+		bowTo(dc, b.X+b.W-trapezoidInset, b.X+trapezoidInset, b.Y+b.H, +1)
 		dc.ClosePath()
 	},
+}
+
+// bowRatio is how far a cylinder-like head's horizontal edge bows out at its
+// middle, as a fraction of the edge's width, so the head reads as a cylinder
+// (or cone) seen straight on: narrower ends bow proportionally less.
+const bowRatio = 0.025
+
+// bowTo continues the current path, which is at (from, y), horizontally to
+// (to, y) along a shallow curve that bows out by bowRatio of its width at the
+// middle: up (dir -1) for a top edge, down (dir +1) for a bottom edge. The
+// start is passed in because gg reports the current point in device space.
+func bowTo(dc *gg.Context, from, to, y, dir float64) {
+	sag := math.Abs(to-from) * bowRatio
+	// A quadratic curve peaks at half its control point's offset.
+	dc.QuadraticTo((from+to)/2, y+dir*2*sag, to, y)
 }
 
 // cornerRadius is the bottom-corner radius of each head shape (0 if sharp).

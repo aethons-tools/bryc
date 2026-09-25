@@ -85,11 +85,12 @@ func eyeTilt(s Spec, b Layout, x float64) float64 {
 }
 
 // drawRoundFamily draws round, oval and focused eyes: each is a round eye in
-// its style, squashed and tilted as a whole. gg doesn't scale line widths, so
-// outlines keep their thickness.
+// its style, squashed and tilted as a whole (gg doesn't scale line widths, so
+// outlines keep their thickness). The glint is drawn afterwards, untilted and
+// round, at the same offset on every eye, as if lit by one light.
 func drawRoundFamily(c *canvas, s Spec, b Layout) {
 	glow, r := parseHex(s.Glow), roundEyeR(s)
-	draw := eyeStyles[s.EyeStyle]
+	draw, g := eyeStyles[s.EyeStyle], glintFor(s, r)
 	for _, p := range roundEyeCenters(s, b) {
 		x, y := p[0], p[1]
 		c.dc.Push()
@@ -99,7 +100,36 @@ func drawRoundFamily(c *canvas, s Spec, b Layout) {
 		}
 		draw(c, x, y, r, glow)
 		c.dc.Pop()
+		c.dc.DrawCircle(x+g.dx, y+g.dy, g.r)
+		c.dc.SetColor(color.NRGBA{255, 255, 255, g.alpha})
+		c.dc.Fill()
 	}
+}
+
+// glint is the white shine on an eye's glass: its offset from the eye's
+// center, radius and opacity.
+type glint struct {
+	dx, dy, r float64
+	alpha     uint8
+}
+
+// glintFor places the glint up and to the left of center, scaled with the
+// eye. Ovals are shorter, so their glint sits a little lower and smaller to
+// stay on the glass, including when tilted either way.
+func glintFor(s Spec, r float64) glint {
+	var g glint
+	if s.EyeStyle == "glower" {
+		k := r / maxEyeRadius
+		g = glint{dx: -34 * k, dy: -34 * k, r: 14 * k, alpha: 110} // faint, on the black lens
+	} else {
+		k := r / roundEyeRadius
+		g = glint{dx: -18 * k, dy: -18 * k, r: 16 * k, alpha: 200}
+	}
+	if s.Eyes != "round" {
+		g.dy *= ovalAspect
+		g.r *= 0.8
+	}
+	return g
 }
 
 var eyeParts = map[string]part{
@@ -118,8 +148,9 @@ var eyeParts = map[string]part{
 	},
 }
 
-// eyeStyles draw one round eye of radius r centered at (x, y). Every detail
-// scales with the eye, so small eyes look like smaller versions of big ones.
+// eyeStyles draw one round eye of radius r centered at (x, y), without its
+// glint (see glintFor). Every detail scales with the eye, so small eyes look
+// like smaller versions of big ones.
 var eyeStyles = map[string]func(c *canvas, x, y, r float64, glow color.NRGBA){
 	"bright": drawBrightEye,
 	"glower": drawGlowerEye,
@@ -127,14 +158,13 @@ var eyeStyles = map[string]func(c *canvas, x, y, r float64, glow color.NRGBA){
 }
 
 // drawBrightEye is a lit bulb: glow fill, with the glow spilling over the
-// outline, a pale hot spot and a glint.
+// outline, and a pale hot spot.
 func drawBrightEye(c *canvas, x, y, r float64, glow color.NRGBA) {
 	k := r / roundEyeRadius
 	c.dc.DrawCircle(x, y, r)
 	c.fillOutlined(glow)
 	halo(c, x, y, r, haloSpread*k, glow)
 	hotSpot(c, x, y, hotSpotRadius*k, glow)
-	highlight(c, x-18*k, y-18*k, 16*k)
 }
 
 // Glowering (HAL-style) eye geometry at the largest eye size: a metal ring
@@ -165,18 +195,12 @@ func drawGlowerEye(c *canvas, x, y, r float64, glow color.NRGBA) {
 	c.dc.SetColor(glow)
 	c.dc.Fill()
 	hotSpot(c, x, y, hotSpotRadius*k, glow)
-	// A faint glint on the glass.
-	c.dc.DrawCircle(x-34*k, y-34*k, 14*k)
-	c.dc.SetColor(color.NRGBA{255, 255, 255, 110})
-	c.dc.Fill()
 }
 
 // drawDeadEye is an unlit lens: black, with only the glint.
 func drawDeadEye(c *canvas, x, y, r float64, _ color.NRGBA) {
-	k := r / roundEyeRadius
 	c.dc.DrawCircle(x, y, r)
 	c.fillOutlined(screen)
-	highlight(c, x-18*k, y-18*k, 16*k)
 }
 
 // hotSpotRadius is the pale center of a lit eye, for a full-size eye.

@@ -655,3 +655,28 @@ func TestTiltedOvalWithinRound(t *testing.T) {
 		t.Errorf("tilted oval reaches %v wide, %v tall; round eye is %v", halfW, halfH, r)
 	}
 }
+
+// TestRenderGlintsShareOneLight checks every eye's glint sits at the same
+// screen-space offset from its center and stays round, as if lit by one
+// light, even on tilted focused eyes.
+func TestRenderGlintsShareOneLight(t *testing.T) {
+	no := false
+	glint := mix(screen, color.NRGBA{255, 255, 255, 255}, 200.0/255)
+	for _, eyes := range []string{"round", "oval", "focused"} {
+		s := Resolve(Spec{Eyes: eyes, EyeCount: "2", EyeSize: "3", EyeStyle: "dead", Face: &neutral,
+			Body: "#3366cc", Blush: &no}, 4)
+		g := glintFor(s, roundEyeR(s))
+		img := Render(s, 1000)
+		for i, p := range roundEyeCenters(s, headBox) {
+			x, y := p[0]+g.dx, p[1]+g.dy
+			// The center and four points 70% of the way to the glint's rim,
+			// so a squashed or tilted glint fails.
+			for _, o := range [][2]float64{{0, 0}, {0.7, 0}, {-0.7, 0}, {0, 0.7}, {0, -0.7}} {
+				px, py := x+o[0]*g.r, y+o[1]*g.r
+				if got := pixel(img, 1000, px, py); !near(got, glint) {
+					t.Errorf("%s eye %d: glint at (%.0f,%.0f) = %v, want %v", eyes, i, px, py, got, glint)
+				}
+			}
+		}
+	}
+}

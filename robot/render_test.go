@@ -817,3 +817,38 @@ func TestRenderLashTapers(t *testing.T) {
 		}
 	}
 }
+
+// TestLashContinuesOutline checks a lash starts exactly as thick as the eye's
+// outline, so it reads as the outline flowing on, then swells before
+// tapering.
+func TestLashContinuesOutline(t *testing.T) {
+	s := Spec{Eyes: "oval", EyeCount: "2", EyeSize: "3", Face: &neutral}
+	p := roundEyeCenters(s, headBox)[0]
+	l := lashFor(s, headBox, p[0], p[1], roundEyeR(s))
+	if got := l.halfWidth(0); math.Abs(got-outline/2) > 1e-9 {
+		t.Errorf("half width at start = %v, want the outline's %v", got, outline/2.0)
+	}
+	if l.halfWidth(0.3) <= l.halfWidth(0) {
+		t.Errorf("lash doesn't swell: %v at 0.3 vs %v at start", l.halfWidth(0.3), l.halfWidth(0))
+	}
+}
+
+// TestRenderLashBehindGlow checks lashes are drawn behind the eyes: just off a
+// bright eye, the eye's glow tints the lash; a dead eye has no glow, so the
+// lash there is plain ink.
+func TestRenderLashBehindGlow(t *testing.T) {
+	no, yes := false, true
+	for _, c := range []struct {
+		style string
+		ink   bool
+	}{{"bright", false}, {"dead", true}} {
+		s := Resolve(Spec{Eyes: "round", EyeCount: "2", EyeSize: "3", EyeStyle: c.style, Eyelashes: &yes,
+			Face: &neutral, Glow: "#00ff00", Body: "#3366cc", Blush: &no}, 4)
+		p := roundEyeCenters(s, headBox)[0]
+		l := lashFor(s, headBox, p[0], p[1], roundEyeR(s))
+		x, y := l.at(0.08) // just outside the eye, inside its glow
+		if got := near(pixel(Render(s, 1000), 1000, x, y), ink); got != c.ink {
+			t.Errorf("%s: lash just off the eye is plain ink = %v, want %v", c.style, got, c.ink)
+		}
+	}
+}

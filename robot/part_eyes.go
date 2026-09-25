@@ -92,6 +92,13 @@ func drawRoundFamily(c *canvas, s Spec, b Layout) {
 	glow, r := parseHex(s.Glow), roundEyeR(s)
 	draw, g := eyeStyles[s.EyeStyle], glintFor(s, r)
 	centers := roundEyeCenters(s, b)
+	// Lashes go behind the eyes, so each eye's body, outline and glow sit
+	// over its lash's root.
+	if *s.Eyelashes && len(centers) > 1 {
+		for _, p := range centers {
+			drawLash(c, lashFor(s, b, p[0], p[1], r))
+		}
+	}
 	for _, p := range centers {
 		x, y := p[0], p[1]
 		c.dc.Push()
@@ -104,23 +111,30 @@ func drawRoundFamily(c *canvas, s Spec, b Layout) {
 		c.dc.DrawCircle(x+g.dx, y+g.dy, g.r)
 		c.dc.SetColor(color.NRGBA{255, 255, 255, g.alpha})
 		c.dc.Fill()
-		if *s.Eyelashes && len(centers) > 1 {
-			drawLash(c, lashFor(s, b, x, y, r))
-		}
 	}
 }
 
 // lash is one eyelash: a curved ink stroke from start to end, shaped by the
-// control points c1 and c2 (a cubic curve), width thick where it leaves the
-// eye and tapering to a point at its tip.
+// control points c1 and c2 (a cubic curve). It starts as thick as the eye's
+// outline, so it reads as the outline flowing on, swells to width, and tapers
+// to a point at its tip.
 type lash struct {
 	start, c1, c2, end [2]float64
 	width              float64
 }
 
-// halfWidth is half the lash's thickness at t (0 to 1) along it.
+// lashSwell is how far along the lash (0 to 1) it is thickest.
+const lashSwell = 0.3
+
+// halfWidth is half the lash's thickness at t (0 to 1) along it: the
+// outline's thickness at the start, easing up to width at lashSwell, then
+// tapering to nothing at the tip.
 func (l lash) halfWidth(t float64) float64 {
-	return l.width / 2 * math.Pow(1-t, 0.9)
+	base, peak := outline/2, l.width/2
+	if t < lashSwell {
+		return base + (peak-base)*math.Sin(t/lashSwell*math.Pi/2)
+	}
+	return peak * math.Pow((1-t)/(1-lashSwell), 0.9)
 }
 
 // normal is the unit vector perpendicular to the lash at t.
@@ -166,7 +180,7 @@ func (l lash) at(t float64) (float64, float64) {
 const (
 	lashAttach = 50 * math.Pi / 180
 	lashLength = 1.6  // long enough to sweep past the head's outline near its sides
-	lashWidth  = 0.48 // at the base; the lash tapers to a point
+	lashWidth  = 0.48 // at its thickest; the lash tapers to a point
 )
 
 // lashFor is the eyelash for the eye of radius r centered at (x, y). Lashes

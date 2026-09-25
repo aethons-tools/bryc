@@ -14,7 +14,8 @@ go run ./cmd/bryc --shoulders=-80                  # spiky shoulders (-100..100,
 go run ./cmd/bryc --mouth=jaw --expression=smile   # mouths: grille slot line jaw; flat smile frown
 go run ./cmd/bryc --face=2                          # face position -1 (low) .. 2 (high and compact)
 go run ./cmd/bryc --eyes=round --eyecount=6        # 2, 4 or 6 round eyes
-go run ./cmd/bryc --eyes=round --eyesize=1         # smaller round eyes (1..3, capped by eyecount)
+go run ./cmd/bryc --eyes=round --eyesize=1         # smaller round eyes (1..4, capped by eyecount)
+go run ./cmd/bryc --eyecount=1 --eyesize=4 --eyestyle=glower  # the HAL look
 go run ./cmd/bryc --seed=42 --size=1024 -o bot.png # reproduce a robot
 go run ./cmd/bryc -h                               # all options
 ```

@@ -106,10 +106,11 @@ func TestRenderShoulders(t *testing.T) {
 	}
 }
 
-// TestRenderCyclopsHAL checks the HAL-style cyclops: a black lens with the
-// glow lit in its center, inside a metal ring.
-func TestRenderCyclopsHAL(t *testing.T) {
-	s := Resolve(Spec{Eyes: "cyclops", Face: &neutral, Glow: "#00ff00"}, 4)
+// TestRenderGlowerEye checks the HAL-style glowering eye at its largest (a
+// single size-4 eye): a black lens with the glow lit in its center, inside a
+// metal ring.
+func TestRenderGlowerEye(t *testing.T) {
+	s := Resolve(Spec{Eyes: "round", EyeCount: "1", EyeSize: "4", EyeStyle: "glower", Face: &neutral, Glow: "#00ff00"}, 4)
 	ey, _ := facePos(s, headBox)
 	img := Render(s, 1000)
 	for _, p := range []struct {
@@ -175,10 +176,10 @@ func TestRenderExpressionBendsLine(t *testing.T) {
 func TestRenderFaceMovesEyes(t *testing.T) {
 	no := false
 	glow := color.NRGBA{0, 255, 0, 255}
-	core := glow // the cyclops' solid glow core, just off its hot-spot center
+	core := glow // a glowering eye's solid glow core, just off its hot-spot center
 	for _, face := range []int{-1, 0, 1, 2} {
 		for _, head := range HeadValues {
-			s := Resolve(Spec{Head: head, Eyes: "cyclops", Face: &face, Glow: "#00ff00",
+			s := Resolve(Spec{Head: head, Eyes: "round", EyeCount: "1", EyeSize: "4", EyeStyle: "glower", Face: &face, Glow: "#00ff00",
 				Rivets: &no, Panels: &no, Blush: &no}, 5)
 			ey, _ := facePos(s, headBox)
 			if got := pixel(Render(s, 1000), 1000, 512, ey); !near(got, core) {
@@ -219,17 +220,17 @@ func TestFacePosMouth(t *testing.T) {
 }
 
 // TestRenderFaceTopNoCollision checks that at face=+2, where the mouth moves
-// up toward the eyes, the tallest eye (cyclops) and tallest mouth (grille)
+// up toward the eyes, the tallest eye (a single size-4 eye) and tallest mouth (grille)
 // still have face showing between them.
 func TestRenderFaceTopNoCollision(t *testing.T) {
 	no, top := false, 2
 	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
 	for _, head := range HeadValues {
 		for _, expr := range ExpressionValues {
-			s := Resolve(Spec{Head: head, Eyes: "cyclops", Mouth: "grille", Expression: expr, Face: &top,
+			s := Resolve(Spec{Head: head, Eyes: "round", EyeCount: "1", EyeSize: "4", EyeStyle: "glower", Mouth: "grille", Expression: expr, Face: &top,
 				Body: "#3366cc", Glow: "#3366cc", Rivets: &no, Panels: &no, Blush: &no}, 5)
 			ey, my := facePos(s, headBox)
-			eyeBottom := ey + cyclopsRadius + outline/2
+			eyeBottom := ey + maxEyeRadius + outline/2
 			mouthTop := my - grilleHalfHeight - outline/2 // the grille's center never bends
 			if mouthTop-eyeBottom < 8 {
 				t.Errorf("%s/%s: only %v units between eye and mouth", head, expr, mouthTop-eyeBottom)
@@ -243,7 +244,7 @@ func TestRenderFaceTopNoCollision(t *testing.T) {
 }
 
 // TestRenderFaceFitsHead checks that at the highest face position the widest
-// eye style (the visor) and the tallest (the cyclops) stay inside every head
+// eye (the visor) and the tallest (a single size-4 eye) stay inside every head
 // shape: just outside each one's outline must still be head, not background
 // or the head's own outline.
 func TestRenderFaceFitsHead(t *testing.T) {
@@ -251,12 +252,16 @@ func TestRenderFaceFitsHead(t *testing.T) {
 	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
 	const gap = outline/2 + 4 // just past the eye's outline
 	for _, head := range HeadValues {
-		for _, eyes := range []string{"visor", "cyclops"} {
-			s := Resolve(Spec{Head: head, Eyes: eyes, Face: &top, Ears: "none", Antenna: "none",
-				Body: "#3366cc", Glow: "#3366cc", Background: "#ff0000", Rivets: &no, Panels: &no, Blush: &no}, 5) // glow = body hides the halo
+		for _, eyes := range []string{"visor", "single"} {
+			spec := Spec{Head: head, Eyes: eyes, Face: &top, Ears: "none", Antenna: "none",
+				Body: "#3366cc", Glow: "#3366cc", Background: "#ff0000", Rivets: &no, Panels: &no, Blush: &no} // glow = body hides any halo
+			if eyes == "single" {
+				spec.Eyes, spec.EyeCount, spec.EyeSize, spec.EyeStyle = "round", "1", "4", "glower"
+			}
+			s := Resolve(spec, 5)
 			ey, _ := facePos(s, headBox)
 			cx := headBox.CX()
-			probes := [][2]float64{{cx, ey - cyclopsRadius - gap}}
+			probes := [][2]float64{{cx, ey - maxEyeRadius - gap}}
 			if eyes == "visor" {
 				probes = [][2]float64{{cx - visorHalfWidth - gap, ey}, {cx + visorHalfWidth + gap, ey}}
 			}
@@ -293,7 +298,7 @@ func ptr(n int) *int { return &n }
 // and the glow drawn over the outline, so the outline is tinted, not pure ink.
 func TestRenderRoundEyeGlow(t *testing.T) {
 	glow := color.NRGBA{0, 255, 0, 255}
-	s := Resolve(Spec{Eyes: "round", EyeCount: "2", EyeSize: "3", Face: &neutral, Glow: "#00ff00"}, 4)
+	s := Resolve(Spec{Eyes: "round", EyeCount: "2", EyeSize: "3", EyeStyle: "bright", Face: &neutral, Glow: "#00ff00"}, 4)
 	ey, _ := facePos(s, headBox)
 	img := Render(s, 1000)
 	x := headBox.CX() + eyeGap // right eye; the glint sits up-left of center
@@ -310,7 +315,7 @@ func TestRenderRoundEyeGlow(t *testing.T) {
 func TestRenderRoundEyeCounts(t *testing.T) {
 	glow := color.NRGBA{0, 255, 0, 255}
 	for _, count := range EyeCountValues {
-		s := Resolve(Spec{Eyes: "round", EyeCount: count, Face: &neutral, Glow: "#00ff00"}, 4)
+		s := Resolve(Spec{Eyes: "round", EyeCount: count, EyeStyle: "bright", Face: &neutral, Glow: "#00ff00"}, 4)
 		centers := roundEyeCenters(s, headBox)
 		if want, _ := strconv.Atoi(count); len(centers) != want {
 			t.Fatalf("count %s: %d centers", count, len(centers))
@@ -325,14 +330,14 @@ func TestRenderRoundEyeCounts(t *testing.T) {
 }
 
 // TestRoundEyesWithinFaceBounds checks every round eye layout fits inside the
-// cyclops' height and the visor's width, the bounds the face-position fit and
+// largest single eye's height and the visor's width, the bounds the face-position fit and
 // collision tests are built on.
 func TestRoundEyesWithinFaceBounds(t *testing.T) {
 	for _, count := range EyeCountValues {
 		l := roundLayouts[count]
 		height := float64(l.rows-1)*l.rowGap + 2*l.r
-		if height > 2*cyclopsRadius {
-			t.Errorf("count %s: %v tall, cyclops is %v", count, height, 2.0*cyclopsRadius)
+		if height > 2*maxEyeRadius {
+			t.Errorf("count %s: %v tall, the single eye is %v", count, height, 2.0*maxEyeRadius)
 		}
 		if l.colGap+l.r > visorHalfWidth {
 			t.Errorf("count %s: reaches %v from center, visor reaches %v", count, l.colGap+l.r, visorHalfWidth)
@@ -347,9 +352,10 @@ func TestRoundEyeRadius(t *testing.T) {
 		count, size string
 		want        float64
 	}{
-		{"2", "3", 58}, {"2", "2", 40}, {"2", "1", 25},
-		{"4", "3", 40}, {"4", "2", 40}, {"4", "1", 25},
-		{"6", "3", 25}, {"6", "2", 25}, {"6", "1", 25},
+		{"1", "4", 95}, {"1", "3", 58}, {"1", "1", 25},
+		{"2", "4", 58}, {"2", "3", 58}, {"2", "2", 40}, {"2", "1", 25},
+		{"4", "4", 40}, {"4", "3", 40}, {"4", "2", 40}, {"4", "1", 25},
+		{"6", "4", 25}, {"6", "3", 25}, {"6", "2", 25}, {"6", "1", 25},
 	}
 	for _, c := range cases {
 		if got := roundEyeR(Spec{EyeCount: c.count, EyeSize: c.size}); got != c.want {
@@ -362,7 +368,7 @@ func TestRenderEyeSizeShrinksEyes(t *testing.T) {
 	no := false
 	glow, body := color.NRGBA{0, 255, 0, 255}, color.NRGBA{0x33, 0x66, 0xcc, 0xff}
 	render := func(size string) image.Image {
-		return Render(Resolve(Spec{Eyes: "round", EyeCount: "2", EyeSize: size, Face: &neutral,
+		return Render(Resolve(Spec{Eyes: "round", EyeCount: "2", EyeSize: size, EyeStyle: "bright", Face: &neutral,
 			Glow: "#00ff00", Body: "#3366cc", Blush: &no}, 4), 1000)
 	}
 	ey, _ := facePos(Spec{Head: "square", Face: &neutral}, headBox)
@@ -529,5 +535,47 @@ func TestRenderPanelSeamsBow(t *testing.T) {
 				t.Errorf("%s: seam at y=%v (+%v) = %v, want seam color", head, p.y, sag, got)
 			}
 		}
+	}
+}
+
+// TestRenderEyeStyles checks each style's look at a single large eye:
+// bright and glower light the center, dead is a black lens; glower has a
+// metal ring and a black lens around its core, bright is glow all the way out.
+func TestRenderEyeStyles(t *testing.T) {
+	glow := color.NRGBA{0, 255, 0, 255}
+	for _, c := range []struct {
+		style        string
+		center, ring color.NRGBA // at the center, and 72 units out
+	}{
+		{"bright", hotSpotColor(glow), glow},
+		{"glower", hotSpotColor(glow), screen},
+		{"dead", screen, screen},
+	} {
+		s := Resolve(Spec{Eyes: "round", EyeCount: "1", EyeSize: "4", EyeStyle: c.style,
+			Face: &neutral, Glow: "#00ff00"}, 4)
+		ey, _ := facePos(s, headBox)
+		img := Render(s, 1000)
+		if got := pixel(img, 1000, headBox.CX(), ey); !near(got, c.center) {
+			t.Errorf("%s: center = %v, want %v", c.style, got, c.center)
+		}
+		if got := pixel(img, 1000, headBox.CX()+72, ey); !near(got, c.ring) {
+			t.Errorf("%s: 72 out = %v, want %v", c.style, got, c.ring)
+		}
+	}
+}
+
+// TestRenderSmallGlowerEye checks the glower look scales down: a size-1
+// glowering eye still has a lit center and a black lens.
+func TestRenderSmallGlowerEye(t *testing.T) {
+	glow := color.NRGBA{0, 255, 0, 255}
+	s := Resolve(Spec{Eyes: "round", EyeCount: "2", EyeSize: "1", EyeStyle: "glower",
+		Face: &neutral, Glow: "#00ff00"}, 4)
+	p := roundEyeCenters(s, headBox)[1] // right eye; the glint sits up-left
+	img := Render(s, 1000)
+	if got := pixel(img, 1000, p[0], p[1]); !near(got, hotSpotColor(glow)) {
+		t.Errorf("center = %v, want hot spot", got)
+	}
+	if got := pixel(img, 1000, p[0]+17, p[1]); !near(got, screen) { // between the glow fade and the ring
+		t.Errorf("lens = %v, want black", got)
 	}
 }

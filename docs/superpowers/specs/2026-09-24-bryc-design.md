@@ -51,9 +51,10 @@ Each facet is either **pinned** (set by the user) or **unset** (randomized).
 |--------------|-----------------------------------------------------|
 | `head`       | `square`, `rounded`, `dome`, `inverted-dome` (flat top, round bottom), `trapezoid`, `inverted-trapezoid` (wide top, narrow bottom) |
 | `tall`       | `true`, `false` — head extends 80 units upward and is 30 units narrower; the face, ears and rivets stay anchored to the head's bottom, so it reads as a taller forehead |
-| `eyes`       | `round`, `visor`, `cyclops`                         |
-| `eyecount`   | `2`, `4`, `6` — round eyes only: 1–3 stacked pairs, smaller as there are more. Resolved either way; the web page greys it out unless the eyes are round |
-| `eyesize`    | `1`, `2`, `3` — round eyes only: radius 25 / 40 / 58, capped at the eye count's size (6 eyes → 1, 4 → 2, 2 → 3); eyes keep their positions |
+| `eyes`       | `round`, `visor`                                    |
+| `eyecount`   | `1`, `2`, `4`, `6` — round eyes only: one centered eye, or 1–3 stacked pairs, smaller as there are more. Resolved either way; the web page greys it out unless the eyes are round |
+| `eyesize`    | `1`–`4` — round eyes only: radius 25 / 40 / 58 / 95, capped at the eye count's size (6 eyes → 1, 4 → 2, 2 → 3, 1 → 4); eyes keep their positions |
+| `eyestyle`   | `glower` (HAL-style: metal ring, black lens, glow lit in the center), `bright` (glow-filled, glowing over its outline, with a hot spot), `dead` (black lens with a glint) — round eyes only |
 | `mouth`      | `grille`, `slot` (small rectangular opening), `line`, `jaw` (U-shaped plate hugging the lower face, following the head shape) |
 | `expression` | `flat`, `smile`, `frown` — a slight bend applied to any mouth |
 | `face`       | integer `-1`–`2`: `0` neutral; `-1` moves eyes, mouth and blush down and closer together; `+1` raises the eyes toward the top of the head (less on dome/trapezoid heads); `+2` keeps the `+1` eyes and raises the mouth close under them. Parts move, never deform |

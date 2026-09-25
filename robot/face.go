@@ -13,13 +13,13 @@ const (
 	neutralMouth  = 0.76
 	loweredEyes   = 0.50 // face=-1
 	loweredMouth  = 0.82 // face=-1
-	tightMouthGap = 0.35 // face=+2: mouth this far below the eyes, clear of the cyclops
+	tightMouthGap = 0.35 // face=+2: mouth this far below the eyes, clear of the largest single eye
 	blushBetween  = 0.70 // blush sits this far from the eyes toward the mouth
 )
 
 // raisedEyes is the eye height at face=+1 and +2 for each head shape. Heads
 // that narrow toward the top (dome, trapezoid) rise less, so the widest eye
-// style (the visor) and the tallest (the cyclops) always fit inside.
+// eye (the visor) and the tallest (a single eye at its largest) always fit inside.
 var raisedEyes = map[string]float64{
 	"square":             0.3025,
 	"rounded":            0.3025,

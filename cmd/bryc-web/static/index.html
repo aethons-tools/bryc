@@ -1,3 +1,187 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Bored Robots Yacht Club</title></head>
-<body><img src="/robot.png" alt="A random robot"></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bored Robots Yacht Club</title>
+<style>
+  :root { --bg:#f4f1ea; --panel:#fff; --ink:#26262e; --muted:#6b6b76; --line:#e2ddd2; --accent:#3a6ea5; --err:#b3261e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#17171c; --panel:#212128; --ink:#ececf1; --muted:#9a9aa6; --line:#33333d; --accent:#7fb0e8; --err:#ff8a80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 20px 24px 0; }
+  h1 { margin: 0; font-size: 22px; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; padding: 24px; max-width: 1100px; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 16px 16px 0; } }
+  .stage, form { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .stage { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .stage img { width: 100%; max-width: 512px; aspect-ratio: 1; border-radius: 8px;
+    background: repeating-conic-gradient(#8881 0 25%, transparent 0 50%) 0 0 / 24px 24px; }
+  .error { color: var(--err); white-space: pre-wrap; font: 13px/1.5 ui-monospace, monospace; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  button, .button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); cursor: pointer; text-decoration: none; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  form { display: grid; gap: 10px; align-content: start; }
+  label.row { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; }
+  .row > span { color: var(--muted); text-transform: capitalize; }
+  select, input[type=text] { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); width: 100%; }
+  .color { display: flex; gap: 10px; align-items: center; }
+  .color input[type=color] { width: 44px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+  .color input[type=color]:disabled { opacity: .35; }
+  .color label { color: var(--muted); font-size: 13px; display: flex; gap: 4px; align-items: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bored Robots Yacht Club</h1>
+  <p>Pin what you like. Everything else is random.</p>
+</header>
+<main>
+  <section class="stage">
+    <img id="robot" alt="Generated robot portrait">
+    <div id="error" class="error" hidden></div>
+    <div class="actions">
+      <button id="randomize" class="primary" type="button">Randomize</button>
+      <a id="download" class="button" download>Download PNG</a>
+    </div>
+  </section>
+  <form id="controls" autocomplete="off">
+    <label class="row"><span>Seed</span><input id="seed" type="text" inputmode="numeric" placeholder="random"></label>
+    <label class="row"><span>Palette</span><select id="palette"><option value="">none</option></select></label>
+    <!-- facet controls are generated from /options.json -->
+  </form>
+</main>
+<script>
+const form = document.getElementById('controls');
+const seedInput = document.getElementById('seed');
+const paletteSelect = document.getElementById('palette');
+const img = document.getElementById('robot');
+const errorBox = document.getElementById('error');
+const download = document.getElementById('download');
+const controls = []; // {name, read() -> string ('' = random), write(string)}
+let blobURL = null;
+let ticket = 0;
+
+function row(label, control) {
+  const l = document.createElement('label');
+  l.className = 'row';
+  const s = document.createElement('span');
+  s.textContent = label;
+  l.append(s, control);
+  return l;
+}
+
+function selectOf(pairs) {
+  const sel = document.createElement('select');
+  for (const [value, text] of pairs) sel.add(new Option(text, value));
+  return sel;
+}
+
+function checkbox(text) {
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  const label = document.createElement('label');
+  label.append(box, text);
+  return [box, label];
+}
+
+function addFacet(f) {
+  if (f.kind === 'color') {
+    const wrap = document.createElement('div');
+    wrap.className = 'color';
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    const [rand, randLabel] = checkbox('random');
+    wrap.append(picker, randLabel);
+    let none = null;
+    if (f.name === 'background') {
+      let noneLabel;
+      [none, noneLabel] = checkbox('none');
+      wrap.append(noneLabel);
+      none.addEventListener('change', () => { if (none.checked) rand.checked = false; sync(); });
+    }
+    rand.addEventListener('change', () => { if (rand.checked && none) none.checked = false; sync(); });
+    function sync() { picker.disabled = rand.checked || (none && none.checked); }
+    controls.push({
+      name: f.name,
+      read: () => rand.checked ? '' : (none && none.checked) ? 'none' : picker.value,
+      write: (v) => {
+        rand.checked = !v;
+        if (none) none.checked = v === 'none';
+        if (v && v !== 'none') picker.value = v;
+        sync();
+      },
+    });
+    rand.checked = true;
+    sync();
+    form.append(row(f.name, wrap));
+    return;
+  }
+  const pairs = f.kind === 'bool'
+    ? [['', 'random'], ['true', 'on'], ['false', 'off']]
+    : [['', 'random'], ...f.values.map(v => [v, v])];
+  const sel = selectOf(pairs);
+  controls.push({ name: f.name, read: () => sel.value, write: (v) => { sel.value = v || ''; } });
+  form.append(row(f.name, sel));
+}
+
+function currentQuery() {
+  const q = new URLSearchParams();
+  for (const c of controls) { const v = c.read(); if (v) q.set(c.name, v); }
+  if (paletteSelect.value) q.set('palette', paletteSelect.value);
+  const seed = seedInput.value.trim();
+  if (seed) q.set('seed', seed);
+  return q;
+}
+
+async function update() {
+  const q = currentQuery();
+  const mine = ++ticket;
+  const res = await fetch('/robot.png?' + q);
+  if (mine !== ticket) return; // superseded by a newer change
+  if (!res.ok) {
+    errorBox.textContent = await res.text();
+    errorBox.hidden = false;
+    img.hidden = true;
+    return;
+  }
+  const blob = await res.blob();
+  if (mine !== ticket) return;
+  const seed = res.headers.get('X-Bryc-Seed');
+  seedInput.value = seed;
+  q.set('seed', seed);
+  history.replaceState(null, '', '?' + q);
+  if (blobURL) URL.revokeObjectURL(blobURL);
+  blobURL = URL.createObjectURL(blob);
+  img.src = blobURL;
+  img.hidden = false;
+  errorBox.hidden = true;
+  download.href = blobURL;
+  download.download = `bryc-${seed}.png`;
+}
+
+document.getElementById('randomize').addEventListener('click', () => {
+  seedInput.value = '';
+  update();
+});
+form.addEventListener('change', update);
+form.addEventListener('submit', (e) => { e.preventDefault(); update(); });
+
+(async () => {
+  const opts = await (await fetch('/options.json')).json();
+  for (const p of opts.palettes) paletteSelect.add(new Option(p, p));
+  for (const f of opts.facets) addFacet(f);
+  const params = new URLSearchParams(location.search);
+  for (const c of controls) c.write(params.get(c.name) || '');
+  paletteSelect.value = params.get('palette') || '';
+  seedInput.value = params.get('seed') || '';
+  update();
+})();
+</script>
+</body>
+</html>

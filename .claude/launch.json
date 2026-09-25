@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "bryc-web", "runtimeExecutable": "go", "runtimeArgs": ["run", "./cmd/bryc-web"], "port": 8080 }
+  ]
+}

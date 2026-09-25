@@ -739,29 +739,72 @@ func TestRenderEyelashes(t *testing.T) {
 	}
 }
 
-// TestLashesOnCanvas checks every lash stays on the canvas on every head,
-// height, face position and eye layout. Lashes may sweep past the head's
-// outline (they're drawn on top of it), but never off the image.
-func TestLashesOnCanvas(t *testing.T) {
+// TestLashesInsideHead checks every lash stays inside the head, clear of
+// its outline, on every head, height, face position and eye layout: eyes with
+// lashes move inward as far as that needs. The one exception is when the eyes
+// are already as close as minEyeGap allows; those cases are counted and
+// logged.
+func TestLashesInsideHead(t *testing.T) {
+	yes := true
+	atFloor := 0
 	for _, head := range HeadValues {
 		for _, tall := range []bool{false, true} {
 			for face := FaceMin; face <= FaceMax; face++ {
 				for _, eyes := range []string{"round", "oval", "focused"} {
 					for _, count := range []string{"2", "4", "6"} {
-						s := Spec{Head: head, Tall: &tall, Face: &face, Eyes: eyes, EyeCount: count, EyeSize: "4"}
-						b, r := headLayout(s), roundEyeR(s)
-						for _, p := range roundEyeCenters(s, b) {
-							l := lashFor(s, b, p[0], p[1], r)
-							for i := 0; i <= 10; i++ {
-								x, y := l.at(float64(i) / 10)
-								reach := l.halfWidth(float64(i) / 10)
-								if x-reach < 0 || x+reach > virtual || y-reach < 0 || y+reach > virtual {
-									t.Errorf("%s tall=%v face=%d %s x%s: lash point (%.0f,%.0f) leaves the canvas",
-										head, tall, face, eyes, count, x, y)
-									break
+						for _, size := range EyeSizeValues {
+							s := Spec{Head: head, Tall: &tall, Face: &face, Eyes: eyes, EyeCount: count,
+								EyeSize: size, Eyelashes: &yes}
+							b, r := headLayout(s), roundEyeR(s)
+							centers := roundEyeCenters(s, b)
+							if 2*math.Abs(centers[0][0]-b.CX())-2*r <= minEyeGap+1e-6 {
+								atFloor++
+								continue
+							}
+							for _, p := range centers {
+								l := lashFor(s, b, p[0], p[1], r)
+								for i := 0; i <= 20; i++ {
+									x, y := l.at(float64(i) / 20)
+									reach := l.halfWidth(float64(i)/20) + outline/2
+									left := leftEdge(head, b, y)
+									if x-reach < left-0.5 || x+reach > 2*b.CX()-left+0.5 || y-reach < headTop(head, b, x) {
+										t.Errorf("%s tall=%v face=%d %s x%s size %s: lash point (%.0f,%.0f) leaves the head",
+											head, tall, face, eyes, count, size, x, y)
+										break
+									}
 								}
 							}
 						}
+					}
+				}
+			}
+		}
+	}
+	t.Logf("%d layouts with eyes at the minimum gap, where lashes may overhang", atFloor)
+}
+
+// TestLashesMoveEyesOnlyWhenNeeded checks eyes keep their layout positions
+// without lashes, move inward (never outward) with them, and never crowd each
+// other.
+func TestLashesMoveEyesOnlyWhenNeeded(t *testing.T) {
+	no, yes := false, true
+	for _, head := range HeadValues {
+		for _, count := range []string{"2", "4", "6"} {
+			for _, size := range EyeSizeValues {
+				base := Spec{Head: head, Tall: &no, Face: &neutral, Eyes: "round", EyeCount: count, EyeSize: size, Eyelashes: &no}
+				with := base
+				with.Eyelashes = &yes
+				l, r := roundLayouts[count], roundEyeR(base)
+				plain, lashed := roundEyeCenters(base, headBox), roundEyeCenters(with, headBox)
+				for i := range plain {
+					if want := headBox.CX() + l.colGap*math.Copysign(1, plain[i][0]-headBox.CX()); math.Abs(plain[i][0]-want) > 1e-9 {
+						t.Errorf("%s x%s: without lashes eye %d at x=%v, want layout's %v", head, count, i, plain[i][0], want)
+					}
+					if math.Abs(lashed[i][0]-headBox.CX()) > math.Abs(plain[i][0]-headBox.CX())+1e-9 {
+						t.Errorf("%s x%s: lashes moved eye %d outward", head, count, i)
+					}
+					if gap := 2*math.Abs(lashed[i][0]-headBox.CX()) - 2*r; gap < minEyeGap-1e-9 {
+						t.Errorf("%s x%s size %s: eyes only %v apart", head, count, size, gap)
 					}
 				}
 			}

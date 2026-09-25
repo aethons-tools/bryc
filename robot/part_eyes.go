@@ -38,20 +38,98 @@ func roundEyeR(s Spec) float64 {
 }
 
 // roundEyeCenters returns the center of every round eye, rows centered on
-// the face's eye line.
+// the face's eye line. With eyelashes, the columns move inward as far as it
+// takes to keep every lash inside the head (see lashShift).
 func roundEyeCenters(s Spec, b Layout) [][2]float64 {
+	colGap := roundLayouts[s.EyeCount].colGap
+	if hasLashes(s) {
+		colGap -= lashShift(s, b, colGap)
+	}
+	return eyeCentersAt(s, b, colGap)
+}
+
+// eyeCentersAt lays out the round eyes with columns colGap from the center.
+func eyeCentersAt(s Spec, b Layout, colGap float64) [][2]float64 {
 	l := roundLayouts[s.EyeCount]
 	top := eyeY(s, b) - float64(l.rows-1)*l.rowGap/2
 	var centers [][2]float64
 	for row := range l.rows {
 		y := top + float64(row)*l.rowGap
-		if l.colGap == 0 {
+		if colGap == 0 {
 			centers = append(centers, [2]float64{b.CX(), y})
 			continue
 		}
-		centers = append(centers, [2]float64{b.CX() - l.colGap, y}, [2]float64{b.CX() + l.colGap, y})
+		centers = append(centers, [2]float64{b.CX() - colGap, y}, [2]float64{b.CX() + colGap, y})
 	}
 	return centers
+}
+
+// hasLashes reports whether s's eyes are drawn with lashes: only with more
+// than one eye.
+func hasLashes(s Spec) bool {
+	return s.Eyelashes != nil && *s.Eyelashes && roundLayouts[s.EyeCount].colGap > 0
+}
+
+// minEyeGap is the closest two eyes in a row may come when lashes move them
+// inward, edge to edge.
+const minEyeGap = 20.0
+
+// lashShift is how far to move eye columns inward from colGap so every lash
+// stays inside the head, clear of its outline. Lashes move rigidly with their
+// eye, so it's the smallest shift at which a disc as wide as the lash (plus
+// the outline) fits inside the head at every point along each left-hand lash
+// (the right side mirrors it). It never brings the eyes closer than
+// minEyeGap; past that, a lash may still overhang.
+func lashShift(s Spec, b Layout, colGap float64) float64 {
+	r := roundEyeR(s)
+	limit := max(0, colGap-r-minEyeGap/2)
+	need := 0.0
+	for _, p := range eyeCentersAt(s, b, colGap) {
+		if p[0] > b.CX() {
+			continue
+		}
+		l := lashFor(s, b, p[0], p[1], r)
+		for i := 0; i <= 20; i++ {
+			t := float64(i) / 20
+			x, y := l.at(t)
+			m := l.halfWidth(t) + outline/2
+			if discInHead(s.Head, b, x+need, y, m) {
+				continue
+			}
+			// Binary search the smallest shift that fits this point.
+			lo, hi := need, limit
+			if !discInHead(s.Head, b, x+hi, y, m) {
+				return limit
+			}
+			for range 30 {
+				mid := (lo + hi) / 2
+				if discInHead(s.Head, b, x+mid, y, m) {
+					hi = mid
+				} else {
+					lo = mid
+				}
+			}
+			need = hi
+		}
+	}
+	return need
+}
+
+// discInHead reports whether a disc of radius m at (x, y) lies inside the
+// head's sides and top, checked at its center and around its rim.
+func discInHead(head string, b Layout, x, y, m float64) bool {
+	for i := range 17 {
+		px, py := x, y
+		if i > 0 {
+			a := float64(i) * 2 * math.Pi / 16
+			px, py = x+m*math.Cos(a), y+m*math.Sin(a)
+		}
+		left := leftEdge(head, b, py)
+		if px < left || px > 2*b.CX()-left || py < headTop(head, b, px) {
+			return false
+		}
+	}
+	return true
 }
 
 // The widest and tallest eyes, which bound how far the face can move: the
@@ -94,7 +172,7 @@ func drawRoundFamily(c *canvas, s Spec, b Layout) {
 	centers := roundEyeCenters(s, b)
 	// Lashes go behind the eyes, so each eye's body, outline and glow sit
 	// over its lash's root.
-	if *s.Eyelashes && len(centers) > 1 {
+	if hasLashes(s) {
 		for _, p := range centers {
 			drawLash(c, lashFor(s, b, p[0], p[1], r))
 		}
@@ -183,9 +261,7 @@ const (
 	lashWidth  = 0.48 // at its thickest; the lash tapers to a point
 )
 
-// lashFor is the eyelash for the eye of radius r centered at (x, y). Lashes
-// are drawn over the head, so near its sides they may sweep past its outline.
-// It
+// lashFor is the eyelash for the eye of radius r centered at (x, y). It
 // leaves the eye's upper-outer edge (outer is away from the head's center
 // line; a centered eye counts as left) along the eye's outline, continuing
 // the curve of the upper lid outward, then curls up. It follows the eye's

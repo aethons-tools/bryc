@@ -99,13 +99,18 @@ func sideInset(head string, b Layout, y float64) float64 {
 }
 
 // leftEdge is the x of the head's left outline at height y, including the
-// dome's cap and rounded bottom corners (the top corners of square and
-// rounded heads are ignored). The right edge mirrors it about b.CX().
+// dome's cap and every rounded corner. The right edge mirrors it about
+// b.CX().
 func leftEdge(head string, b Layout, y float64) float64 {
 	x := b.X + sideInset(head, b, y)
 	if r := b.W / 2; head == "dome" && y < b.Y+r {
 		dy := b.Y + r - y
 		return b.CX() - math.Sqrt(max(0, r*r-dy*dy))
+	}
+	// Square and rounded heads have rounded top corners too.
+	if r := cornerRadius[head]; (head == "square" || head == "rounded") && y < b.Y+r {
+		dy := b.Y + r - y
+		return x + r - math.Sqrt(max(0, r*r-dy*dy))
 	}
 	r := bottomRadius(head, b)
 	if dy := y - (b.Y + b.H - r); r > 0 && dy > 0 {

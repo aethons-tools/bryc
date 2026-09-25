@@ -42,7 +42,8 @@ func TestRenderBackground(t *testing.T) {
 
 func TestRenderHeadUsesBodyColor(t *testing.T) {
 	for _, head := range HeadValues {
-		s := Resolve(Spec{Head: head, Body: "#3366cc"}, 3)
+		// The jaw mouth covers the probe by design, so pin a mouth that doesn't.
+		s := Resolve(Spec{Head: head, Mouth: "line", Body: "#3366cc"}, 3)
 		if got := pixel(Render(s, 200), 200, probeX, probeY); !near(got, color.NRGBA{0x33, 0x66, 0xcc, 0xff}) {
 			t.Errorf("head %s: probe = %v, want body color", head, got)
 		}
@@ -108,5 +109,48 @@ func TestRenderCyclopsUsesGlow(t *testing.T) {
 	got := pixel(Render(s, 200), 200, 565, 444)
 	if !near(got, color.NRGBA{0, 255, 0, 255}) {
 		t.Errorf("lens = %v, want glow color", got)
+	}
+}
+
+func TestRenderJaw(t *testing.T) {
+	no := false
+	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
+	jaw := shade(body, jawShade)
+	for _, head := range HeadValues {
+		s := Resolve(Spec{Head: head, Mouth: "jaw", Expression: "flat", Body: "#3366cc",
+			Rivets: &no, Panels: &no, Blush: &no}, 3)
+		img := Render(s, 1000)
+		for _, p := range []struct {
+			name string
+			x, y float64
+			want color.NRGBA
+		}{
+			{"chin", 360, 680, jaw},
+			{"cheek band", 280, 600, jaw},
+			{"face inside the U", 330, 580, body},
+		} {
+			if got := pixel(img, 1000, p.x, p.y); !near(got, p.want) {
+				t.Errorf("head %s: %s (%v,%v) = %v, want %v", head, p.name, p.x, p.y, got, p.want)
+			}
+		}
+	}
+}
+
+func TestRenderExpressionBendsLine(t *testing.T) {
+	no := false
+	render := func(expr string) image.Image {
+		return Render(Resolve(Spec{Mouth: "line", Expression: expr, Body: "#3366cc", Blush: &no}, 3), 1000)
+	}
+	// The line's left end sits above center for a smile and below it for a frown.
+	endX, above, below := 415.0, mouthY(headBox)-18, mouthY(headBox)+18
+	smile, frown := render("smile"), render("frown")
+	if got := pixel(smile, 1000, endX, above); !near(got, ink) {
+		t.Errorf("smile: end above center = %v, want ink", got)
+	}
+	if got := pixel(frown, 1000, endX, below); !near(got, ink) {
+		t.Errorf("frown: end below center = %v, want ink", got)
+	}
+	if got := pixel(smile, 1000, endX, below); near(got, ink) {
+		t.Errorf("smile: end below center is ink, want face")
 	}
 }

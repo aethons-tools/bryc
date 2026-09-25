@@ -51,7 +51,8 @@ Each facet is either **pinned** (set by the user) or **unset** (randomized).
 |--------------|-----------------------------------------------------|
 | `head`       | `square`, `rounded`, `dome`, `trapezoid`            |
 | `eyes`       | `round`, `visor`, `cyclops`, `led`                  |
-| `mouth`      | `grille`, `speaker`, `smile`, `zigzag`              |
+| `mouth`      | `grille`, `slot` (small rectangular opening), `line`, `jaw` (U-shaped plate hugging the lower face, following the head shape) |
+| `expression` | `flat`, `smile`, `frown` — a slight bend applied to any mouth |
 | `antenna`    | `none`, `ball`, `double`, `bolt`                    |
 | `ears`       | `none`, `bolts`, `dials`                            |
 | `shoulders`  | integer `-100`–`100`: `0` square, positive rounds the corners (to very soft at `100`), negative raises one spike per shoulder (tallest at `-100`) |

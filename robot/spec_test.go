@@ -39,12 +39,12 @@ func TestParseQueryRandomMeansUnset(t *testing.T) {
 }
 
 func TestParseQueryFull(t *testing.T) {
-	req := mustParse(t, "head=dome&eyes=visor&mouth=grille&antenna=bolt&ears=dials"+
+	req := mustParse(t, "head=dome&eyes=visor&mouth=jaw&expression=frown&antenna=bolt&ears=dials"+
 		"&rivets=true&panels=false&blush=true"+
 		"&body=%23AABBCC&accent=%23112233&glow=%23445566&background=none"+
 		"&palette=mint&seed=42&size=256")
 	s := req.Spec
-	if s.Head != "dome" || s.Eyes != "visor" || s.Mouth != "grille" || s.Antenna != "bolt" || s.Ears != "dials" {
+	if s.Head != "dome" || s.Eyes != "visor" || s.Mouth != "jaw" || s.Expression != "frown" || s.Antenna != "bolt" || s.Ears != "dials" {
 		t.Errorf("enums wrong: %+v", s)
 	}
 	if !*s.Rivets || *s.Panels || !*s.Blush {
@@ -103,18 +103,24 @@ func TestFacets(t *testing.T) {
 	for _, f := range fs {
 		names = append(names, f.Name)
 	}
-	want := "head eyes mouth antenna ears shoulders rivets panels blush body accent glow background"
+	want := "head eyes mouth expression antenna ears shoulders rivets panels blush body accent glow background"
 	if strings.Join(names, " ") != want {
 		t.Errorf("facet order = %v", names)
 	}
 	if fs[0].Kind != KindEnum || !reflect.DeepEqual(fs[0].Values, HeadValues) {
 		t.Errorf("head facet = %+v", fs[0])
 	}
-	if fs[5].Kind != KindRange || *fs[5].Min != ShouldersMin || *fs[5].Max != ShouldersMax {
-		t.Errorf("shoulders facet = %+v", fs[5])
+	if fs[3].Kind != KindEnum || !reflect.DeepEqual(fs[3].Values, []string{"flat", "smile", "frown"}) {
+		t.Errorf("expression facet = %+v", fs[3])
 	}
-	if fs[6].Kind != KindBool || fs[12].Kind != KindColor {
-		t.Errorf("kinds wrong: %+v %+v", fs[6], fs[12])
+	if fs[6].Kind != KindRange || *fs[6].Min != ShouldersMin || *fs[6].Max != ShouldersMax {
+		t.Errorf("shoulders facet = %+v", fs[6])
+	}
+	if fs[7].Kind != KindBool || fs[13].Kind != KindColor {
+		t.Errorf("kinds wrong: %+v %+v", fs[7], fs[13])
+	}
+	if !reflect.DeepEqual(fs[2].Values, []string{"grille", "slot", "line", "jaw"}) {
+		t.Errorf("mouth values = %v", fs[2].Values)
 	}
 }
 

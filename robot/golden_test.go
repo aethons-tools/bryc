@@ -21,7 +21,7 @@ func TestGolden(t *testing.T) {
 		"seed-2": Resolve(Spec{}, 2),
 		"seed-3": Resolve(Spec{}, 3),
 		"pinned-transparent": {
-			Head: "dome", Eyes: "visor", Mouth: "grille", Antenna: "bolt", Ears: "dials",
+			Head: "dome", Eyes: "visor", Mouth: "jaw", Expression: "smile", Antenna: "bolt", Ears: "dials",
 			Shoulders: intp(-60), Rivets: boolp(true), Panels: boolp(true), Blush: boolp(true),
 			Body: "#98e2c6", Accent: "#ff8fa3", Glow: "#3ae0ff", Background: "none",
 		},

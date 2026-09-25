@@ -14,7 +14,7 @@ const outline = 14.0
 
 var (
 	ink    = color.NRGBA{0x26, 0x26, 0x2e, 0xff} // outlines and dark details
-	metal  = color.NRGBA{0xd9, 0xdd, 0xe3, 0xff} // grilles, speakers
+	metal  = color.NRGBA{0xd9, 0xdd, 0xe3, 0xff} // grilles, bolts, rivets
 	screen = color.NRGBA{0x1d, 0x1d, 0x24, 0xff} // visor background
 )
 

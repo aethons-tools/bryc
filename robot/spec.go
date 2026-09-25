@@ -37,19 +37,20 @@ const (
 
 // Allowed values for each enum facet.
 var (
-	HeadValues    = []string{"square", "rounded", "dome", "trapezoid"}
-	EyesValues    = []string{"round", "visor", "cyclops", "led"}
-	MouthValues   = []string{"grille", "speaker", "smile", "zigzag"}
-	AntennaValues = []string{"none", "ball", "double", "bolt"}
-	EarsValues    = []string{"none", "bolts", "dials"}
+	HeadValues       = []string{"square", "rounded", "dome", "trapezoid"}
+	EyesValues       = []string{"round", "visor", "cyclops", "led"}
+	MouthValues      = []string{"grille", "slot", "line", "jaw"}
+	ExpressionValues = []string{"flat", "smile", "frown"}
+	AntennaValues    = []string{"none", "ball", "double", "bolt"}
+	EarsValues       = []string{"none", "bolts", "dials"}
 )
 
 // Spec describes one robot. A zero-valued field is unset and gets randomized
 // by Resolve; a resolved Spec has every field set.
 type Spec struct {
-	Head, Eyes, Mouth, Antenna, Ears string
-	Shoulders                        *int
-	Rivets, Panels, Blush            *bool
+	Head, Eyes, Mouth, Expression, Antenna, Ears string
+	Shoulders                                    *int
+	Rivets, Panels, Blush                        *bool
 	// Colors are "#rrggbb"; Background may also be "none" (transparent).
 	Body, Accent, Glow, Background string
 }
@@ -71,6 +72,7 @@ func (s *Spec) fields() []field {
 		{name: "head", kind: KindEnum, values: HeadValues, str: &s.Head},
 		{name: "eyes", kind: KindEnum, values: EyesValues, str: &s.Eyes},
 		{name: "mouth", kind: KindEnum, values: MouthValues, str: &s.Mouth},
+		{name: "expression", kind: KindEnum, values: ExpressionValues, str: &s.Expression},
 		{name: "antenna", kind: KindEnum, values: AntennaValues, str: &s.Antenna},
 		{name: "ears", kind: KindEnum, values: EarsValues, str: &s.Ears},
 		{name: "shoulders", kind: KindRange, min: ShouldersMin, max: ShouldersMax, num: &s.Shoulders},

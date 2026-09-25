@@ -106,12 +106,24 @@ func TestRenderShoulders(t *testing.T) {
 	}
 }
 
-func TestRenderCyclopsUsesGlow(t *testing.T) {
+// TestRenderCyclopsHAL checks the HAL-style cyclops: a black lens with the
+// glow lit in its center, inside a metal ring.
+func TestRenderCyclopsHAL(t *testing.T) {
 	s := Resolve(Spec{Eyes: "cyclops", Face: &neutral, Glow: "#00ff00"}, 4)
-	// A point on the lens ring: right of center, between pupil (r40) and rim (r95).
-	got := pixel(Render(s, 200), 200, 565, 444)
-	if !near(got, color.NRGBA{0, 255, 0, 255}) {
-		t.Errorf("lens = %v, want glow color", got)
+	ey, _ := facePos(s, headBox)
+	img := Render(s, 1000)
+	for _, p := range []struct {
+		name string
+		dx   float64 // distance right of the eye's center
+		want color.NRGBA
+	}{
+		{"glow core", 12, color.NRGBA{0, 255, 0, 255}},
+		{"dark lens", 72, screen},
+		{"metal ring", 86, metal},
+	} {
+		if got := pixel(img, 1000, headBox.CX()+p.dx, ey); !near(got, p.want) {
+			t.Errorf("%s at +%v = %v, want %v", p.name, p.dx, got, p.want)
+		}
 	}
 }
 
@@ -162,14 +174,14 @@ func TestRenderExpressionBendsLine(t *testing.T) {
 func TestRenderFaceMovesEyes(t *testing.T) {
 	no := false
 	glow := color.NRGBA{0, 255, 0, 255}
-	pupil := shade(glow, 0.55)
+	core := glow // the cyclops' solid glow core, just off its hot-spot center
 	for _, face := range []int{-1, 0, 1, 2} {
 		for _, head := range HeadValues {
 			s := Resolve(Spec{Head: head, Eyes: "cyclops", Face: &face, Glow: "#00ff00",
 				Rivets: &no, Panels: &no, Blush: &no}, 5)
 			ey, _ := facePos(s, headBox)
-			if got := pixel(Render(s, 1000), 1000, 500, ey); !near(got, pupil) {
-				t.Errorf("face=%d head=%s: pupil at y=%v = %v, want %v", face, head, ey, got, pupil)
+			if got := pixel(Render(s, 1000), 1000, 512, ey); !near(got, core) {
+				t.Errorf("face=%d head=%s: glow core at y=%v = %v, want %v", face, head, ey, got, core)
 			}
 		}
 	}

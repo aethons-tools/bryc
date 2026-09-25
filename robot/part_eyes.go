@@ -33,16 +33,7 @@ var eyeParts = map[string]part{
 		c.dc.Fill()
 		highlight(c, b.CX()-130, y-10, 9)
 	},
-	"cyclops": func(c *canvas, s Spec, b Layout) {
-		glow, x, y := parseHex(s.Glow), b.CX(), eyeY(s, b)
-		halo(c, x, y, cyclopsRadius, glow)
-		c.dc.DrawCircle(x, y, cyclopsRadius)
-		c.fillOutlined(glow)
-		c.dc.DrawCircle(x, y, 40)
-		c.dc.SetColor(shade(glow, 0.55))
-		c.dc.Fill()
-		highlight(c, x-30, y-30, 20)
-	},
+	"cyclops": drawHAL,
 	"led": func(c *canvas, s Spec, b Layout) {
 		glow, y := parseHex(s.Glow), eyeY(s, b)
 		for _, x := range eyeXs(b) {
@@ -56,6 +47,43 @@ var eyeParts = map[string]part{
 			c.strokeWith(ink, 6)
 		}
 	},
+}
+
+// Cyclops (HAL-style) geometry: a metal ring around a black lens with the
+// glow lit in its center.
+const (
+	cyclopsRing     = 12.0 // width of the metal ring inside the outline
+	cyclopsCore     = 18.0 // radius of the solid glow core
+	cyclopsGlowFade = 60.0 // radius the glow fades out by
+	cyclopsHotSpot  = 7.0  // radius of the pale center of the core
+)
+
+func drawHAL(c *canvas, s Spec, b Layout) {
+	glow, x, y := parseHex(s.Glow), b.CX(), eyeY(s, b)
+	c.dc.DrawCircle(x, y, cyclopsRadius)
+	c.fillOutlined(metal)
+	c.dc.DrawCircle(x, y, cyclopsRadius-cyclopsRing)
+	c.dc.SetColor(screen)
+	c.dc.FillPreserve()
+	c.dc.SetColor(ink)
+	c.lw(5)
+	c.dc.Stroke()
+	// The glow fades out from the core in translucent steps.
+	for r := cyclopsGlowFade; r > cyclopsCore; r -= 10 {
+		c.dc.DrawCircle(x, y, r)
+		c.dc.SetColor(withAlpha(glow, 45))
+		c.dc.Fill()
+	}
+	c.dc.DrawCircle(x, y, cyclopsCore)
+	c.dc.SetColor(glow)
+	c.dc.Fill()
+	c.dc.DrawCircle(x, y, cyclopsHotSpot)
+	c.dc.SetColor(mix(glow, color.NRGBA{255, 255, 255, 255}, 0.6))
+	c.dc.Fill()
+	// A faint glint on the glass.
+	c.dc.DrawCircle(x-34, y-34, 14)
+	c.dc.SetColor(color.NRGBA{255, 255, 255, 110})
+	c.dc.Fill()
 }
 
 // halo paints a soft glow behind an eye as stacked translucent discs.

@@ -56,3 +56,9 @@ func withAlpha(c color.NRGBA, a uint8) color.NRGBA {
 	c.A = a
 	return c
 }
+
+// mix blends a toward b by t in [0,1].
+func mix(a, b color.NRGBA, t float64) color.NRGBA {
+	ch := func(x, y uint8) uint8 { return uint8(math.Round(float64(x) + (float64(y)-float64(x))*t)) }
+	return color.NRGBA{ch(a.R, b.R), ch(a.G, b.G), ch(a.B, b.B), ch(a.A, b.A)}
+}

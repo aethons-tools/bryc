@@ -105,19 +105,52 @@ func drawRoundFamily(c *canvas, s Spec, b Layout) {
 		c.dc.SetColor(color.NRGBA{255, 255, 255, g.alpha})
 		c.dc.Fill()
 		if *s.Eyelashes && len(centers) > 1 {
-			l := lashFor(s, b, x, y, r)
-			c.dc.MoveTo(l.start[0], l.start[1])
-			c.dc.CubicTo(l.c1[0], l.c1[1], l.c2[0], l.c2[1], l.end[0], l.end[1])
-			c.strokeWith(ink, l.width)
+			drawLash(c, lashFor(s, b, x, y, r))
 		}
 	}
 }
 
 // lash is one eyelash: a curved ink stroke from start to end, shaped by the
-// control points c1 and c2 (a cubic curve).
+// control points c1 and c2 (a cubic curve), width thick where it leaves the
+// eye and tapering to a point at its tip.
 type lash struct {
 	start, c1, c2, end [2]float64
 	width              float64
+}
+
+// halfWidth is half the lash's thickness at t (0 to 1) along it.
+func (l lash) halfWidth(t float64) float64 {
+	return l.width / 2 * math.Pow(1-t, 0.9)
+}
+
+// normal is the unit vector perpendicular to the lash at t.
+func (l lash) normal(t float64) (float64, float64) {
+	u := 1 - t
+	dx := 3*u*u*(l.c1[0]-l.start[0]) + 6*u*t*(l.c2[0]-l.c1[0]) + 3*t*t*(l.end[0]-l.c2[0])
+	dy := 3*u*u*(l.c1[1]-l.start[1]) + 6*u*t*(l.c2[1]-l.c1[1]) + 3*t*t*(l.end[1]-l.c2[1])
+	n := math.Hypot(dx, dy)
+	return -dy / n, dx / n
+}
+
+// drawLash fills the lash as a tapering shape: out along one side of its
+// curve and back along the other.
+func drawLash(c *canvas, l lash) {
+	const steps = 20
+	for i := 0; i <= steps; i++ {
+		t := float64(i) / steps
+		x, y := l.at(t)
+		nx, ny := l.normal(t)
+		c.dc.LineTo(x+nx*l.halfWidth(t), y+ny*l.halfWidth(t))
+	}
+	for i := steps; i >= 0; i-- {
+		t := float64(i) / steps
+		x, y := l.at(t)
+		nx, ny := l.normal(t)
+		c.dc.LineTo(x-nx*l.halfWidth(t), y-ny*l.halfWidth(t))
+	}
+	c.dc.ClosePath()
+	c.dc.SetColor(ink)
+	c.dc.Fill()
 }
 
 // at is the point at t (0 to 1) along the lash.
@@ -131,9 +164,9 @@ func (l lash) at(t float64) (float64, float64) {
 // Eyelash geometry, relative to the eye's radius: where on the eye's edge it
 // attaches (measured up from the outer side), how long it is, and how thick.
 const (
-	lashAttach = 65 * math.Pi / 180
-	lashLength = 0.7
-	lashWidth  = 0.16
+	lashAttach = 50 * math.Pi / 180
+	lashLength = 0.8
+	lashWidth  = 0.24 // at the base; the lash tapers to a point
 )
 
 // lashFor is the eyelash for the eye of radius r centered at (x, y). It
@@ -167,8 +200,8 @@ func lashFor(s Spec, b Layout, x, y, r float64) lash {
 	return lash{
 		start: at(ax, ay),
 		c1:    at(ax+0.5*L*tx, ay+0.5*L*ty),                    // leave along the outline
-		c2:    at(ax+0.95*L*tx, ay+0.95*L*ty-0.15*L),           // run out, beginning to lift
-		end:   at(ax+0.95*L*tx+out*0.05*L, ay+0.95*L*ty-0.6*L), // flick up, above the start
+		c2:    at(ax+0.95*L*tx, ay+0.95*L*ty-0.2*L),            // run out, beginning to lift
+		end:   at(ax+0.95*L*tx+out*0.05*L, ay+0.95*L*ty-0.8*L), // flick up, above the start
 		width: lashWidth * r,
 	}
 }

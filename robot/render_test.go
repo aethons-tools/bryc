@@ -751,9 +751,9 @@ func TestLashesInsideHead(t *testing.T) {
 						b, r := headLayout(s), roundEyeR(s)
 						for _, p := range roundEyeCenters(s, b) {
 							l := lashFor(s, b, p[0], p[1], r)
-							reach := l.width/2 + outline/2
 							for i := 0; i <= 10; i++ { // the whole curve, not just its tip
 								x, y := l.at(float64(i) / 10)
+								reach := l.halfWidth(float64(i)/10) + outline/2
 								left := leftEdge(head, b, y)
 								if x-reach < left || x+reach > 2*b.CX()-left || y-reach < headTop(head, b, x) {
 									t.Errorf("%s tall=%v face=%d %s x%s: lash point (%.0f,%.0f) leaves the head",
@@ -790,4 +790,30 @@ func outlineTangent(s Spec, b Layout, x, y, r float64) (float64, float64) {
 	x0, y0 := edge(lashAttach + h)
 	x1, y1 := edge(lashAttach - h)
 	return x1 - x0, y1 - y0
+}
+
+// TestRenderLashTapers checks a lash is thick where it leaves the eye and
+// thin at its tip: a point a fixed distance off the curve is ink near the
+// start and not near the tip.
+func TestRenderLashTapers(t *testing.T) {
+	no, yes := false, true
+	s := Resolve(Spec{Eyes: "round", EyeCount: "2", EyeSize: "3", EyeStyle: "dead", Eyelashes: &yes,
+		Face: &neutral, Body: "#3366cc", Blush: &no, Rivets: &no, Panels: &no, Ears: "none"}, 4)
+	p := roundEyeCenters(s, headBox)[0]
+	l := lashFor(s, headBox, p[0], p[1], roundEyeR(s))
+	if !(l.halfWidth(0.2) > l.halfWidth(0.9) && l.halfWidth(0.9) > 0) {
+		t.Fatalf("half widths %v at 0.2, %v at 0.9: want tapering, still positive", l.halfWidth(0.2), l.halfWidth(0.9))
+	}
+	img := Render(s, 1000)
+	off := 0.6 * l.halfWidth(0.3) // inside the lash near its base, outside it near the tip
+	for _, c := range []struct {
+		t   float64
+		ink bool
+	}{{0.3, true}, {0.9, false}} {
+		x, y := l.at(c.t)
+		nx, ny := l.normal(c.t)
+		if got := near(pixel(img, 1000, x+off*nx, y+off*ny), ink); got != c.ink {
+			t.Errorf("at t=%v, %v off the curve: ink=%v, want %v", c.t, off, got, c.ink)
+		}
+	}
 }

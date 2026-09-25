@@ -105,7 +105,7 @@ func TestFacets(t *testing.T) {
 		names = append(names, f.Name)
 		byName[f.Name] = f
 	}
-	want := "head eyes mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
+	want := "head eyes eyecount mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
 	if strings.Join(names, " ") != want {
 		t.Errorf("facet order = %v", names)
 	}
@@ -113,6 +113,7 @@ func TestFacets(t *testing.T) {
 		"head":       HeadValues,
 		"mouth":      {"grille", "slot", "line", "jaw"},
 		"expression": {"flat", "smile", "frown"},
+		"eyecount":   {"2", "4", "6"},
 	}
 	for name, values := range enums {
 		if f := byName[name]; f.Kind != KindEnum || !reflect.DeepEqual(f.Values, values) {
@@ -124,6 +125,12 @@ func TestFacets(t *testing.T) {
 		if f := byName[name]; f.Kind != KindRange || *f.Min != r[0] || *f.Max != r[1] {
 			t.Errorf("%s facet = %+v", name, f)
 		}
+	}
+	if d := byName["eyecount"].DependsOn; d == nil || *d != (Dependency{Facet: "eyes", Value: "round"}) {
+		t.Errorf("eyecount dependsOn = %+v, want eyes=round", d)
+	}
+	if byName["head"].DependsOn != nil {
+		t.Errorf("head should not depend on anything")
 	}
 	if byName["rivets"].Kind != KindBool || byName["background"].Kind != KindColor {
 		t.Errorf("kinds wrong: %+v %+v", byName["rivets"], byName["background"])

@@ -292,7 +292,7 @@ func ptr(n int) *int { return &n }
 // and the glow drawn over the outline, so the outline is tinted, not pure ink.
 func TestRenderRoundEyeGlow(t *testing.T) {
 	glow := color.NRGBA{0, 255, 0, 255}
-	s := Resolve(Spec{Eyes: "round", Face: &neutral, Glow: "#00ff00"}, 4)
+	s := Resolve(Spec{Eyes: "round", EyeCount: "2", Face: &neutral, Glow: "#00ff00"}, 4)
 	ey, _ := facePos(s, headBox)
 	img := Render(s, 1000)
 	x := headBox.CX() + eyeGap // right eye; the glint sits up-left of center
@@ -301,5 +301,40 @@ func TestRenderRoundEyeGlow(t *testing.T) {
 	}
 	if got := pixel(img, 1000, x+roundEyeRadius, ey); near(got, ink) {
 		t.Errorf("outline = %v, want tinted by the glow", got)
+	}
+}
+
+// TestRenderRoundEyeCounts checks every round eye, for each count, has its
+// hot spot where roundEyeCenters says it is.
+func TestRenderRoundEyeCounts(t *testing.T) {
+	glow := color.NRGBA{0, 255, 0, 255}
+	for _, count := range EyeCountValues {
+		s := Resolve(Spec{Eyes: "round", EyeCount: count, Face: &neutral, Glow: "#00ff00"}, 4)
+		centers := roundEyeCenters(s, headBox)
+		if want, _ := strconv.Atoi(count); len(centers) != want {
+			t.Fatalf("count %s: %d centers", count, len(centers))
+		}
+		img := Render(s, 1000)
+		for _, p := range centers {
+			if got := pixel(img, 1000, p[0], p[1]); !near(got, hotSpotColor(glow)) {
+				t.Errorf("count %s: eye at (%v,%v) = %v, want hot spot", count, p[0], p[1], got)
+			}
+		}
+	}
+}
+
+// TestRoundEyesWithinFaceBounds checks every round eye layout fits inside the
+// cyclops' height and the visor's width, the bounds the face-position fit and
+// collision tests are built on.
+func TestRoundEyesWithinFaceBounds(t *testing.T) {
+	for _, count := range EyeCountValues {
+		l := roundLayouts[count]
+		height := float64(l.rows-1)*l.rowGap + 2*l.r
+		if height > 2*cyclopsRadius {
+			t.Errorf("count %s: %v tall, cyclops is %v", count, height, 2.0*cyclopsRadius)
+		}
+		if l.colGap+l.r > visorHalfWidth {
+			t.Errorf("count %s: reaches %v from center, visor reaches %v", count, l.colGap+l.r, visorHalfWidth)
+		}
 	}
 }

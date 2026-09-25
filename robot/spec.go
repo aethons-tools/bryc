@@ -46,6 +46,7 @@ const (
 var (
 	HeadValues       = []string{"square", "rounded", "dome", "trapezoid"}
 	EyesValues       = []string{"round", "visor", "cyclops", "led"}
+	EyeCountValues   = []string{"2", "4", "6"} // round eyes only: 1, 2 or 3 stacked pairs
 	MouthValues      = []string{"grille", "slot", "line", "jaw"}
 	ExpressionValues = []string{"flat", "smile", "frown"}
 	AntennaValues    = []string{"none", "ball", "double", "bolt"}
@@ -55,9 +56,9 @@ var (
 // Spec describes one robot. A zero-valued field is unset and gets randomized
 // by Resolve; a resolved Spec has every field set.
 type Spec struct {
-	Head, Eyes, Mouth, Expression, Antenna, Ears string
-	Face, Shoulders                              *int
-	Rivets, Panels, Blush                        *bool
+	Head, Eyes, EyeCount, Mouth, Expression, Antenna, Ears string
+	Face, Shoulders                                        *int
+	Rivets, Panels, Blush                                  *bool
 	// Colors are "#rrggbb"; Background may also be "none" (transparent).
 	Body, Accent, Glow, Background string
 }
@@ -72,12 +73,16 @@ type field struct {
 	str      *string  // KindEnum and KindColor
 	flag     **bool   // KindBool
 	num      **int    // KindRange
+	// dependsOn names a facet value this facet only has an effect with.
+	dependsOn *Dependency
 }
 
 func (s *Spec) fields() []field {
 	return []field{
 		{name: "head", kind: KindEnum, values: HeadValues, str: &s.Head},
 		{name: "eyes", kind: KindEnum, values: EyesValues, str: &s.Eyes},
+		{name: "eyecount", kind: KindEnum, values: EyeCountValues, str: &s.EyeCount,
+			dependsOn: &Dependency{Facet: "eyes", Value: "round"}},
 		{name: "mouth", kind: KindEnum, values: MouthValues, str: &s.Mouth},
 		{name: "expression", kind: KindEnum, values: ExpressionValues, str: &s.Expression},
 		{name: "face", kind: KindRange, min: FaceMin, max: FaceMax, num: &s.Face},
@@ -121,13 +126,22 @@ type Facet struct {
 	Values []string `json:"values,omitempty"`
 	Min    *int     `json:"min,omitempty"` // KindRange only
 	Max    *int     `json:"max,omitempty"` // KindRange only
+	// DependsOn, if set, is the facet value this facet needs to have any
+	// effect; it is still resolved (randomly, if unset) either way.
+	DependsOn *Dependency `json:"dependsOn,omitempty"`
+}
+
+// Dependency is a facet value another facet depends on.
+type Dependency struct {
+	Facet string `json:"facet"`
+	Value string `json:"value"`
 }
 
 // Facets lists every facet in display order.
 func Facets() []Facet {
 	var out []Facet
 	for _, f := range new(Spec).fields() {
-		facet := Facet{Name: f.name, Kind: f.kind, Values: f.values}
+		facet := Facet{Name: f.name, Kind: f.kind, Values: f.values, DependsOn: f.dependsOn}
 		if f.kind == KindRange {
 			facet.Min, facet.Max = &f.min, &f.max
 		}

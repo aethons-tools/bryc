@@ -12,6 +12,7 @@ go run ./cmd/bryc --head=dome --palette=mint       # pin some parts
 go run ./cmd/bryc --shoulders=-80                  # spiky shoulders (-100..100, 0 = square)
 go run ./cmd/bryc --mouth=jaw --expression=smile   # mouths: grille slot line jaw; flat smile frown
 go run ./cmd/bryc --face=2                          # face position -1 (low) .. 2 (high and compact)
+go run ./cmd/bryc --eyes=round --eyecount=6        # 2, 4 or 6 round eyes
 go run ./cmd/bryc --seed=42 --size=1024 -o bot.png # reproduce a robot
 go run ./cmd/bryc -h                               # all options
 ```

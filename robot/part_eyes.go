@@ -4,7 +4,36 @@ import "image/color"
 
 const eyeGap = 110 // distance from the head's center line to each eye
 
+// roundEyeRadius is the size of a round eye when there is a single pair.
 const roundEyeRadius = 58
+
+// roundLayout arranges round eyes as stacked pairs: radius, vertical distance
+// between rows, and each column's distance from the head's center line. More
+// eyes are smaller so the group is never taller than the cyclops or wider
+// than the visor.
+type roundLayout struct {
+	r, rowGap, colGap float64
+	rows              int
+}
+
+var roundLayouts = map[string]roundLayout{
+	"2": {r: roundEyeRadius, colGap: eyeGap, rows: 1},
+	"4": {r: 40, rowGap: 104, colGap: 100, rows: 2},
+	"6": {r: 25, rowGap: 68, colGap: 88, rows: 3},
+}
+
+// roundEyeCenters returns the center of every round eye, rows centered on
+// the face's eye line.
+func roundEyeCenters(s Spec, b Layout) [][2]float64 {
+	l := roundLayouts[s.EyeCount]
+	top := eyeY(s, b) - float64(l.rows-1)*l.rowGap/2
+	var centers [][2]float64
+	for row := range l.rows {
+		y := top + float64(row)*l.rowGap
+		centers = append(centers, [2]float64{b.CX() - l.colGap, y}, [2]float64{b.CX() + l.colGap, y})
+	}
+	return centers
+}
 
 // The widest and tallest eye styles, which bound how far the face can move.
 const (
@@ -18,14 +47,17 @@ func eyeXs(b Layout) []float64 { return []float64{b.CX() - eyeGap, b.CX() + eyeG
 
 var eyeParts = map[string]part{
 	"round": func(c *canvas, s Spec, b Layout) {
-		glow, y := parseHex(s.Glow), eyeY(s, b)
-		for _, x := range eyeXs(b) {
-			c.dc.DrawCircle(x, y, roundEyeRadius)
+		glow := parseHex(s.Glow)
+		r := roundLayouts[s.EyeCount].r
+		k := r / roundEyeRadius // glow, hot spot and glint scale with the eye
+		for _, p := range roundEyeCenters(s, b) {
+			x, y := p[0], p[1]
+			c.dc.DrawCircle(x, y, r)
 			c.fillOutlined(glow)
 			// The glow goes over the outline, like a lit bulb.
-			halo(c, x, y, roundEyeRadius, glow)
-			hotSpot(c, x, y, glow)
-			highlight(c, x-18, y-18, 16)
+			halo(c, x, y, r, haloSpread*k, glow)
+			hotSpot(c, x, y, hotSpotRadius*k, glow)
+			highlight(c, x-18*k, y-18*k, 16*k)
 		}
 	},
 	"visor": func(c *canvas, s Spec, b Layout) {
@@ -41,7 +73,7 @@ var eyeParts = map[string]part{
 	"led": func(c *canvas, s Spec, b Layout) {
 		glow, y := parseHex(s.Glow), eyeY(s, b)
 		for _, x := range eyeXs(b) {
-			halo(c, x, y, 70, glow)
+			halo(c, x, y, 70, haloSpread, glow)
 			c.dc.DrawRectangle(x-55, y-55, 110, 110)
 			c.fillOutlined(glow)
 			c.dc.MoveTo(x, y-55)
@@ -80,7 +112,7 @@ func drawHAL(c *canvas, s Spec, b Layout) {
 	c.dc.DrawCircle(x, y, cyclopsCore)
 	c.dc.SetColor(glow)
 	c.dc.Fill()
-	hotSpot(c, x, y, glow)
+	hotSpot(c, x, y, hotSpotRadius, glow)
 	// A faint glint on the glass.
 	c.dc.DrawCircle(x-34, y-34, 14)
 	c.dc.SetColor(color.NRGBA{255, 255, 255, 110})
@@ -95,16 +127,21 @@ func hotSpotColor(glow color.NRGBA) color.NRGBA {
 }
 
 // hotSpot paints the pale center of a lit eye.
-func hotSpot(c *canvas, x, y float64, glow color.NRGBA) {
-	c.dc.DrawCircle(x, y, hotSpotRadius)
+func hotSpot(c *canvas, x, y, r float64, glow color.NRGBA) {
+	c.dc.DrawCircle(x, y, r)
 	c.dc.SetColor(hotSpotColor(glow))
 	c.dc.Fill()
 }
 
-// halo paints a soft glow around an eye as stacked translucent discs.
-func halo(c *canvas, x, y, r float64, glow color.NRGBA) {
+// haloSpread is how far each of a halo's three glow rings reaches past the
+// last, for a full-size eye.
+const haloSpread = 14.0
+
+// halo paints a soft glow around an eye of radius r as stacked translucent
+// discs, each reaching spread further out.
+func halo(c *canvas, x, y, r, spread float64, glow color.NRGBA) {
 	for i := 3; i >= 1; i-- {
-		c.dc.DrawCircle(x, y, r+float64(i)*14)
+		c.dc.DrawCircle(x, y, r+float64(i)*spread)
 		c.dc.SetColor(withAlpha(glow, 40))
 		c.dc.Fill()
 	}

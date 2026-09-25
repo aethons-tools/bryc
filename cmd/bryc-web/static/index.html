@@ -28,6 +28,7 @@
   form { display: grid; gap: 10px; align-content: start; }
   label.row { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 8px; }
   .row > span { color: var(--muted); text-transform: capitalize; }
+  .row.inactive { opacity: .45; }
   select, input[type=text], input[type=number] { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line);
     background: var(--bg); color: var(--ink); width: 100%; }
   .color { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -99,6 +100,27 @@ function checkbox(text) {
   return [box, label];
 }
 
+// Display labels for facets whose names don't read well as-is.
+const labels = { eyecount: 'eye count' };
+
+// Facets that only matter for some value of another facet (e.g. eyecount
+// needs round eyes) are greyed out while the current robot doesn't have it.
+const dependents = []; // {dep: {facet, value}, row}
+
+function track(f, rowEl) {
+  if (f.dependsOn) dependents.push({ dep: f.dependsOn, row: rowEl });
+  return rowEl;
+}
+
+function updateDependents(resolved) {
+  for (const { dep, row } of dependents) {
+    const inactive = resolved.get(dep.facet) !== dep.value;
+    row.classList.toggle('inactive', inactive);
+    row.title = inactive ? `Only applies when ${dep.facet} is ${dep.value}` : '';
+    for (const el of row.querySelectorAll('select, input')) el.disabled = inactive;
+  }
+}
+
 function addFacet(f) {
   if (f.kind === 'color') {
     const wrap = document.createElement('div');
@@ -131,7 +153,7 @@ function addFacet(f) {
     });
     rand.checked = true;
     sync();
-    form.append(row(f.name, wrap));
+    form.append(track(f, row(labels[f.name] || f.name, wrap)));
     return;
   }
   if (f.kind === 'range') {
@@ -166,7 +188,7 @@ function addFacet(f) {
     });
     rand.checked = true;
     sync();
-    form.append(row(f.name, wrap));
+    form.append(track(f, row(labels[f.name] || f.name, wrap)));
     return;
   }
   const pairs = f.kind === 'bool'
@@ -174,7 +196,7 @@ function addFacet(f) {
     : [['', 'random'], ...f.values.map(v => [v, v])];
   const sel = selectOf(pairs);
   controls.push({ name: f.name, read: () => sel.value, write: (v) => { sel.value = v || ''; }, show: () => {} });
-  form.append(row(f.name, sel));
+  form.append(track(f, row(labels[f.name] || f.name, sel)));
 }
 
 function currentQuery() {
@@ -206,6 +228,7 @@ async function update() {
   q.set('seed', seed);
   const resolved = new URLSearchParams(res.headers.get('X-Bryc-Spec') || '');
   for (const c of controls) c.show(resolved.get(c.name) || '');
+  updateDependents(resolved);
   history.replaceState(null, '', '?' + q);
   if (blobURL) URL.revokeObjectURL(blobURL);
   blobURL = URL.createObjectURL(blob);

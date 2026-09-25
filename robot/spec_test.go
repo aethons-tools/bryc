@@ -84,7 +84,7 @@ func TestParseQueryAggregatesProblems(t *testing.T) {
 }
 
 func TestQueryRoundTrip(t *testing.T) {
-	req := mustParse(t, "head=square&rivets=false&body=%23010203&background=none")
+	req := mustParse(t, "head=square&rivets=false&body=%23010203&background=none&shoulders=0")
 	again, err := ParseQuery(req.Spec.Query())
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +92,7 @@ func TestQueryRoundTrip(t *testing.T) {
 	if !reflect.DeepEqual(again.Spec, req.Spec) {
 		t.Errorf("round trip: got %+v, want %+v", again.Spec, req.Spec)
 	}
-	if got := req.Spec.Query().Encode(); got != "background=none&body=%23010203&head=square&rivets=false" {
+	if got := req.Spec.Query().Encode(); got != "background=none&body=%23010203&head=square&rivets=false&shoulders=0" {
 		t.Errorf("Query().Encode() = %q", got)
 	}
 }
@@ -103,15 +103,18 @@ func TestFacets(t *testing.T) {
 	for _, f := range fs {
 		names = append(names, f.Name)
 	}
-	want := "head eyes mouth antenna ears rivets panels blush body accent glow background"
+	want := "head eyes mouth antenna ears shoulders rivets panels blush body accent glow background"
 	if strings.Join(names, " ") != want {
 		t.Errorf("facet order = %v", names)
 	}
 	if fs[0].Kind != KindEnum || !reflect.DeepEqual(fs[0].Values, HeadValues) {
 		t.Errorf("head facet = %+v", fs[0])
 	}
-	if fs[5].Kind != KindBool || fs[11].Kind != KindColor {
-		t.Errorf("kinds wrong: %+v %+v", fs[5], fs[11])
+	if fs[5].Kind != KindRange || *fs[5].Min != ShouldersMin || *fs[5].Max != ShouldersMax {
+		t.Errorf("shoulders facet = %+v", fs[5])
+	}
+	if fs[6].Kind != KindBool || fs[12].Kind != KindColor {
+		t.Errorf("kinds wrong: %+v %+v", fs[6], fs[12])
 	}
 }
 
@@ -119,5 +122,24 @@ func TestPaletteNamesSorted(t *testing.T) {
 	got := strings.Join(PaletteNames(), ",")
 	if got != "bubblegum,chrome,midnight,mint,rusty,sunny" {
 		t.Errorf("PaletteNames() = %s", got)
+	}
+}
+
+func TestParseQueryShoulders(t *testing.T) {
+	for raw, want := range map[string]int{"shoulders=-40": -40, "shoulders=0": 0, "shoulders=100": 100} {
+		req := mustParse(t, raw)
+		if req.Spec.Shoulders == nil || *req.Spec.Shoulders != want {
+			t.Errorf("%s: Shoulders = %v, want %d", raw, req.Spec.Shoulders, want)
+		}
+	}
+	for raw, want := range map[string]string{
+		"shoulders=150":  "shoulders: 150 is outside -100 to 100",
+		"shoulders=-101": "shoulders: -101 is outside -100 to 100",
+		"shoulders=wide": `shoulders: "wide" is not an integer`,
+	} {
+		q, _ := url.ParseQuery(raw)
+		if _, err := ParseQuery(q); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: err = %v, want %q", raw, err, want)
+		}
 	}
 }

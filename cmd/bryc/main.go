@@ -40,6 +40,8 @@ func parseArgs(args []string, stderr io.Writer) (options, error) {
 			usage = strings.Join(f.Values, " | ")
 		case robot.KindBool:
 			usage = "true | false"
+		case robot.KindRange:
+			usage = fmt.Sprintf("integer %d to %d", *f.Min, *f.Max)
 		case robot.KindColor:
 			usage = "#rrggbb"
 			if f.Name == "background" {

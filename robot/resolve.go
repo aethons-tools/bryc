@@ -32,6 +32,9 @@ func Resolve(partial Spec, seed uint64) Spec {
 		case KindBool:
 			b := r.IntN(2) == 0
 			*f.flag = &b
+		case KindRange:
+			n := f.min + r.IntN(f.max-f.min+1)
+			*f.num = &n
 		case KindColor:
 			cr := colorRanges[f.name]
 			h := r.Float64() * 360

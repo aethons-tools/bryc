@@ -25,6 +25,14 @@ const (
 	KindEnum  Kind = "enum"
 	KindBool  Kind = "bool"
 	KindColor Kind = "color"
+	KindRange Kind = "range" // an integer between a facet's Min and Max
+)
+
+// Shoulders range: 0 is square, positive rounds the corners off, negative
+// grows a spike on each shoulder.
+const (
+	ShouldersMin = -100
+	ShouldersMax = 100
 )
 
 // Allowed values for each enum facet.
@@ -40,6 +48,7 @@ var (
 // by Resolve; a resolved Spec has every field set.
 type Spec struct {
 	Head, Eyes, Mouth, Antenna, Ears string
+	Shoulders                        *int
 	Rivets, Panels, Blush            *bool
 	// Colors are "#rrggbb"; Background may also be "none" (transparent).
 	Body, Accent, Glow, Background string
@@ -48,11 +57,13 @@ type Spec struct {
 // field is a name-addressable view of one Spec field, so parsing,
 // validation, encoding and randomization can loop over facets.
 type field struct {
-	name   string
-	kind   Kind
-	values []string // KindEnum only
-	str    *string  // KindEnum and KindColor
-	flag   **bool   // KindBool
+	name     string
+	kind     Kind
+	values   []string // KindEnum only
+	min, max int      // KindRange only
+	str      *string  // KindEnum and KindColor
+	flag     **bool   // KindBool
+	num      **int    // KindRange
 }
 
 func (s *Spec) fields() []field {
@@ -62,6 +73,7 @@ func (s *Spec) fields() []field {
 		{name: "mouth", kind: KindEnum, values: MouthValues, str: &s.Mouth},
 		{name: "antenna", kind: KindEnum, values: AntennaValues, str: &s.Antenna},
 		{name: "ears", kind: KindEnum, values: EarsValues, str: &s.Ears},
+		{name: "shoulders", kind: KindRange, min: ShouldersMin, max: ShouldersMax, num: &s.Shoulders},
 		{name: "rivets", kind: KindBool, flag: &s.Rivets},
 		{name: "panels", kind: KindBool, flag: &s.Panels},
 		{name: "blush", kind: KindBool, flag: &s.Blush},
@@ -73,15 +85,21 @@ func (s *Spec) fields() []field {
 }
 
 func (f field) isSet() bool {
-	if f.kind == KindBool {
+	switch f.kind {
+	case KindBool:
 		return *f.flag != nil
+	case KindRange:
+		return *f.num != nil
 	}
 	return *f.str != ""
 }
 
 func (f field) value() string {
-	if f.kind == KindBool {
+	switch f.kind {
+	case KindBool:
 		return strconv.FormatBool(**f.flag)
+	case KindRange:
+		return strconv.Itoa(**f.num)
 	}
 	return *f.str
 }
@@ -91,13 +109,19 @@ type Facet struct {
 	Name   string   `json:"name"`
 	Kind   Kind     `json:"kind"`
 	Values []string `json:"values,omitempty"`
+	Min    *int     `json:"min,omitempty"` // KindRange only
+	Max    *int     `json:"max,omitempty"` // KindRange only
 }
 
 // Facets lists every facet in display order.
 func Facets() []Facet {
 	var out []Facet
 	for _, f := range new(Spec).fields() {
-		out = append(out, Facet{Name: f.name, Kind: f.kind, Values: f.values})
+		facet := Facet{Name: f.name, Kind: f.kind, Values: f.values}
+		if f.kind == KindRange {
+			facet.Min, facet.Max = &f.min, &f.max
+		}
+		out = append(out, facet)
 	}
 	return out
 }
@@ -180,6 +204,13 @@ func ParseQuery(q url.Values) (Request, error) {
 					continue
 				}
 				*f.flag = &b
+			case f.kind == KindRange:
+				n, err := strconv.Atoi(v)
+				if err != nil {
+					problems = append(problems, fmt.Sprintf("%s: %q is not an integer", key, v))
+					continue
+				}
+				*f.num = &n
 			case f.kind == KindColor:
 				*f.str = strings.ToLower(v)
 			default:
@@ -209,6 +240,12 @@ func (r Request) problems() []string {
 	var problems []string
 	for _, f := range r.Spec.fields() {
 		if !f.isSet() || f.kind == KindBool {
+			continue
+		}
+		if f.kind == KindRange {
+			if n := **f.num; n < f.min || n > f.max {
+				problems = append(problems, fmt.Sprintf("%s: %d is outside %d to %d", f.name, n, f.min, f.max))
+			}
 			continue
 		}
 		v := *f.str

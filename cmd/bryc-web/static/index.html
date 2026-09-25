@@ -34,6 +34,11 @@
   .color input[type=color] { width: 44px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
   .color input[type=color]:disabled { opacity: .35; }
   .color label { color: var(--muted); font-size: 13px; display: flex; gap: 4px; align-items: center; }
+  .range { display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .range input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+  .range.random input[type=range], .range.random output { opacity: .45; }
+  .range output { width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
+  .range label { color: var(--muted); font-size: 13px; display: flex; gap: 4px; align-items: center; }
 </style>
 </head>
 <body>
@@ -123,6 +128,41 @@ function addFacet(f) {
       // While random, keep the picker on the robot's current color so
       // pinning starts from what you see instead of black.
       show: (v) => { if (rand.checked && /^#[0-9a-f]{6}$/.test(v)) picker.value = v; },
+    });
+    rand.checked = true;
+    sync();
+    form.append(row(f.name, wrap));
+    return;
+  }
+  if (f.kind === 'range') {
+    const wrap = document.createElement('div');
+    wrap.className = 'range';
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = f.min;
+    slider.max = f.max;
+    slider.step = 1;
+    slider.value = 0;
+    const out = document.createElement('output');
+    const [rand, randLabel] = checkbox('random');
+    wrap.append(slider, out, randLabel);
+    function sync() {
+      out.value = slider.value;
+      wrap.classList.toggle('random', rand.checked);
+    }
+    // Dragging the slider pins it; the form's change listener then re-renders.
+    slider.addEventListener('input', () => { rand.checked = false; sync(); });
+    rand.addEventListener('change', sync);
+    controls.push({
+      name: f.name,
+      read: () => rand.checked ? '' : slider.value,
+      write: (v) => {
+        rand.checked = v === '';
+        if (v !== '') slider.value = v;
+        sync();
+      },
+      // While random, show the robot's current value so pinning starts there.
+      show: (v) => { if (rand.checked && v !== '') { slider.value = v; sync(); } },
     });
     rand.checked = true;
     sync();

@@ -26,14 +26,14 @@ func TestParseArgsEmpty(t *testing.T) {
 
 func TestParseArgsPinned(t *testing.T) {
 	opts, err := parseArgs([]string{
-		"--head=dome", "--rivets=false", "--body=#112233", "--palette=mint",
+		"--head=dome", "--shoulders=-40", "--rivets=false", "--body=#112233", "--palette=mint",
 		"--seed=42", "--size=128", "-o", "x.png",
 	}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
 	r := opts.req
-	if r.Spec.Head != "dome" || *r.Spec.Rivets || r.Spec.Body != "#112233" ||
+	if r.Spec.Head != "dome" || *r.Spec.Shoulders != -40 || *r.Spec.Rivets || r.Spec.Body != "#112233" ||
 		r.Palette != "mint" || *r.Seed != 42 || r.Size != 128 || opts.out != "x.png" {
 		t.Errorf("got %+v", opts)
 	}

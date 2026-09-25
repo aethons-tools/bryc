@@ -54,6 +54,7 @@ Each facet is either **pinned** (set by the user) or **unset** (randomized).
 | `mouth`      | `grille`, `speaker`, `smile`, `zigzag`              |
 | `antenna`    | `none`, `ball`, `double`, `bolt`                    |
 | `ears`       | `none`, `bolts`, `dials`                            |
+| `shoulders`  | integer `-100`–`100`: `0` square, positive rounds the corners (to very soft at `100`), negative raises one spike per shoulder (tallest at `-100`) |
 | `rivets`     | `true`, `false`                                     |
 | `panels`     | `true`, `false`                                     |
 | `blush`      | `true`, `false`                                     |

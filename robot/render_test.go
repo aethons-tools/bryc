@@ -3,6 +3,8 @@ package robot
 import (
 	"image"
 	"image/color"
+	"net/url"
+	"strconv"
 	"testing"
 )
 
@@ -47,31 +49,59 @@ func TestRenderHeadUsesBodyColor(t *testing.T) {
 	}
 }
 
-// TestRenderEveryValue renders each value of each enum and bool facet; it
-// fails (panics) if any value has no drawing code.
+// TestRenderEveryValue renders each value of each enum and bool facet and the
+// ends and middle of each range facet; it fails (panics) if any value has no
+// drawing code.
 func TestRenderEveryValue(t *testing.T) {
 	for _, facet := range Facets() {
 		values := facet.Values
-		if facet.Kind == KindBool {
+		switch facet.Kind {
+		case KindBool:
 			values = []string{"true", "false"}
+		case KindRange:
+			values = []string{strconv.Itoa(*facet.Min), "0", strconv.Itoa(*facet.Max)}
 		}
 		for _, v := range values {
-			var s Spec
-			for _, f := range s.fields() {
-				if f.name != facet.Name {
-					continue
-				}
-				if f.kind == KindBool {
-					b := v == "true"
-					*f.flag = &b
-				} else {
-					*f.str = v
-				}
+			req, err := ParseQuery(url.Values{facet.Name: {v}})
+			if err != nil {
+				t.Fatal(err)
 			}
-			Render(Resolve(s, 11), 64)
+			Render(Resolve(req.Spec, 11), 64)
 		}
 	}
 }
+
+// Shoulder probes, in virtual units: just inside the top-left corner of the
+// shoulders, and above the shoulder line where the left spike rises.
+const (
+	cornerX, cornerY = 140, 840
+	spikeX, spikeY   = 140, 780
+)
+
+func TestRenderShoulders(t *testing.T) {
+	body, bg := color.NRGBA{0x33, 0x66, 0xcc, 0xff}, color.NRGBA{0xff, 0, 0, 0xff}
+	render := func(shoulders int) image.Image {
+		return Render(Resolve(Spec{Body: "#3366cc", Background: "#ff0000", Shoulders: &shoulders}, 3), 200)
+	}
+	cases := []struct {
+		shoulders     int
+		corner, spike color.NRGBA
+	}{
+		{0, body, bg},      // square corners, no spike
+		{100, bg, bg},      // corner rounded away
+		{-100, body, body}, // square corner with a spike above it
+	}
+	for _, c := range cases {
+		img := render(c.shoulders)
+		if got := pixel(img, 200, cornerX, cornerY); !near(got, c.corner) {
+			t.Errorf("shoulders=%d: corner = %v, want %v", c.shoulders, got, c.corner)
+		}
+		if got := pixel(img, 200, spikeX, spikeY); !near(got, c.spike) {
+			t.Errorf("shoulders=%d: spike probe = %v, want %v", c.shoulders, got, c.spike)
+		}
+	}
+}
+
 func TestRenderCyclopsUsesGlow(t *testing.T) {
 	s := Resolve(Spec{Eyes: "cyclops", Glow: "#00ff00"}, 4)
 	// A point on the lens ring: right of center, between pupil (r40) and rim (r95).

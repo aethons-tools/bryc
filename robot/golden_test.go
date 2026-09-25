@@ -13,6 +13,7 @@ import (
 var update = flag.Bool("update", false, "rewrite golden images in testdata/")
 
 func boolp(b bool) *bool { return &b }
+func intp(n int) *int    { return &n }
 
 func TestGolden(t *testing.T) {
 	cases := map[string]Spec{
@@ -21,7 +22,7 @@ func TestGolden(t *testing.T) {
 		"seed-3": Resolve(Spec{}, 3),
 		"pinned-transparent": {
 			Head: "dome", Eyes: "visor", Mouth: "grille", Antenna: "bolt", Ears: "dials",
-			Rivets: boolp(true), Panels: boolp(true), Blush: boolp(true),
+			Shoulders: intp(-60), Rivets: boolp(true), Panels: boolp(true), Blush: boolp(true),
 			Body: "#98e2c6", Accent: "#ff8fa3", Glow: "#3ae0ff", Background: "none",
 		},
 	}

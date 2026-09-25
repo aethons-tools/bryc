@@ -35,7 +35,7 @@ func TestRobotSeeded(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 	q, err := url.ParseQuery(rec.Header().Get("X-Bryc-Spec"))
-	if err != nil || q.Get("head") != "dome" || len(q) != 12 {
+	if err != nil || q.Get("head") != "dome" || len(q) != len(robot.Facets()) {
 		t.Errorf("X-Bryc-Spec = %q", rec.Header().Get("X-Bryc-Spec"))
 	}
 }
@@ -64,7 +64,7 @@ func TestOptions(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Facets) != 12 || len(got.Palettes) == 0 || got.Size.Default != 512 {
+	if len(got.Facets) != len(robot.Facets()) || len(got.Palettes) == 0 || got.Size.Default != 512 {
 		t.Errorf("got %+v", got)
 	}
 }
@@ -74,7 +74,7 @@ func TestIndex(t *testing.T) {
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "Bored Robots Yacht Club") {
 		t.Errorf("code=%d body=%s", rec.Code, rec.Body)
 	}
-	for _, want := range []string{"/options.json", "/robot.png?", "X-Bryc-Seed", "X-Bryc-Spec", `id="size"`, "Randomize"} {
+	for _, want := range []string{"/options.json", "/robot.png?", "X-Bryc-Seed", "X-Bryc-Spec", `id="size"`, "f.kind === 'range'", "Randomize"} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Errorf("index.html missing %q", want)
 		}

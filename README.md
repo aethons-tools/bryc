@@ -9,6 +9,7 @@ robot can be reproduced.
 ```bash
 go run ./cmd/bryc                                  # a random robot → bryc-<seed>.png
 go run ./cmd/bryc --head=dome --palette=mint       # pin some parts
+go run ./cmd/bryc --shoulders=-80                  # spiky shoulders (-100..100, 0 = square)
 go run ./cmd/bryc --seed=42 --size=1024 -o bot.png # reproduce a robot
 go run ./cmd/bryc -h                               # all options
 ```

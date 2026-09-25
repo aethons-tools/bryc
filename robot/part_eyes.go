@@ -4,13 +4,19 @@ import "image/color"
 
 const eyeGap = 110 // distance from the head's center line to each eye
 
-func eyeY(b Layout) float64 { return b.Y + b.H*0.40 }
+// The widest and tallest eye styles, which bound how far the face can move.
+const (
+	visorHalfWidth = 190 // half the visor's width
+	cyclopsRadius  = 95
+)
+
+func eyeY(s Spec, b Layout) float64 { ey, _ := facePos(s, b); return ey }
 
 func eyeXs(b Layout) []float64 { return []float64{b.CX() - eyeGap, b.CX() + eyeGap} }
 
 var eyeParts = map[string]part{
 	"round": func(c *canvas, s Spec, b Layout) {
-		glow, y := parseHex(s.Glow), eyeY(b)
+		glow, y := parseHex(s.Glow), eyeY(s, b)
 		for _, x := range eyeXs(b) {
 			halo(c, x, y, 58, glow)
 			c.dc.DrawCircle(x, y, 58)
@@ -19,8 +25,8 @@ var eyeParts = map[string]part{
 		}
 	},
 	"visor": func(c *canvas, s Spec, b Layout) {
-		glow, y := parseHex(s.Glow), eyeY(b)
-		c.dc.DrawRoundedRectangle(b.CX()-190, y-55, 380, 110, 55)
+		glow, y := parseHex(s.Glow), eyeY(s, b)
+		c.dc.DrawRoundedRectangle(b.CX()-visorHalfWidth, y-55, 2*visorHalfWidth, 110, 55)
 		c.fillOutlined(screen)
 		c.dc.DrawRoundedRectangle(b.CX()-160, y-22, 320, 44, 22)
 		c.dc.SetColor(glow)
@@ -28,9 +34,9 @@ var eyeParts = map[string]part{
 		highlight(c, b.CX()-130, y-10, 9)
 	},
 	"cyclops": func(c *canvas, s Spec, b Layout) {
-		glow, x, y := parseHex(s.Glow), b.CX(), eyeY(b)
-		halo(c, x, y, 95, glow)
-		c.dc.DrawCircle(x, y, 95)
+		glow, x, y := parseHex(s.Glow), b.CX(), eyeY(s, b)
+		halo(c, x, y, cyclopsRadius, glow)
+		c.dc.DrawCircle(x, y, cyclopsRadius)
 		c.fillOutlined(glow)
 		c.dc.DrawCircle(x, y, 40)
 		c.dc.SetColor(shade(glow, 0.55))
@@ -38,7 +44,7 @@ var eyeParts = map[string]part{
 		highlight(c, x-30, y-30, 20)
 	},
 	"led": func(c *canvas, s Spec, b Layout) {
-		glow, y := parseHex(s.Glow), eyeY(b)
+		glow, y := parseHex(s.Glow), eyeY(s, b)
 		for _, x := range eyeXs(b) {
 			halo(c, x, y, 70, glow)
 			c.dc.DrawRectangle(x-55, y-55, 110, 110)

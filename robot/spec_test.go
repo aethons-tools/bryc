@@ -99,28 +99,34 @@ func TestQueryRoundTrip(t *testing.T) {
 
 func TestFacets(t *testing.T) {
 	fs := Facets()
+	byName := map[string]Facet{}
 	var names []string
 	for _, f := range fs {
 		names = append(names, f.Name)
+		byName[f.Name] = f
 	}
-	want := "head eyes mouth expression antenna ears shoulders rivets panels blush body accent glow background"
+	want := "head eyes mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
 	if strings.Join(names, " ") != want {
 		t.Errorf("facet order = %v", names)
 	}
-	if fs[0].Kind != KindEnum || !reflect.DeepEqual(fs[0].Values, HeadValues) {
-		t.Errorf("head facet = %+v", fs[0])
+	enums := map[string][]string{
+		"head":       HeadValues,
+		"mouth":      {"grille", "slot", "line", "jaw"},
+		"expression": {"flat", "smile", "frown"},
 	}
-	if fs[3].Kind != KindEnum || !reflect.DeepEqual(fs[3].Values, []string{"flat", "smile", "frown"}) {
-		t.Errorf("expression facet = %+v", fs[3])
+	for name, values := range enums {
+		if f := byName[name]; f.Kind != KindEnum || !reflect.DeepEqual(f.Values, values) {
+			t.Errorf("%s facet = %+v", name, f)
+		}
 	}
-	if fs[6].Kind != KindRange || *fs[6].Min != ShouldersMin || *fs[6].Max != ShouldersMax {
-		t.Errorf("shoulders facet = %+v", fs[6])
+	ranges := map[string][2]int{"shoulders": {ShouldersMin, ShouldersMax}, "face": {FaceMin, FaceMax}}
+	for name, r := range ranges {
+		if f := byName[name]; f.Kind != KindRange || *f.Min != r[0] || *f.Max != r[1] {
+			t.Errorf("%s facet = %+v", name, f)
+		}
 	}
-	if fs[7].Kind != KindBool || fs[13].Kind != KindColor {
-		t.Errorf("kinds wrong: %+v %+v", fs[7], fs[13])
-	}
-	if !reflect.DeepEqual(fs[2].Values, []string{"grille", "slot", "line", "jaw"}) {
-		t.Errorf("mouth values = %v", fs[2].Values)
+	if byName["rivets"].Kind != KindBool || byName["background"].Kind != KindColor {
+		t.Errorf("kinds wrong: %+v %+v", byName["rivets"], byName["background"])
 	}
 }
 
@@ -142,6 +148,7 @@ func TestParseQueryShoulders(t *testing.T) {
 		"shoulders=150":  "shoulders: 150 is outside -100 to 100",
 		"shoulders=-101": "shoulders: -101 is outside -100 to 100",
 		"shoulders=wide": `shoulders: "wide" is not an integer`,
+		"face=3":         "face: 3 is outside -2 to 2",
 	} {
 		q, _ := url.ParseQuery(raw)
 		if _, err := ParseQuery(q); err == nil || !strings.Contains(err.Error(), want) {

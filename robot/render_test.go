@@ -12,6 +12,9 @@ import (
 // covers; see the plan's geometry notes.
 const probeX, probeY = 360, 650
 
+// neutral pins the face position for tests that probe fixed coordinates.
+var neutral = 0
+
 func pixel(img image.Image, size int, vx, vy float64) color.NRGBA {
 	k := float64(size) / virtual
 	return color.NRGBAModel.Convert(img.At(int(vx*k), int(vy*k))).(color.NRGBA)
@@ -43,7 +46,7 @@ func TestRenderBackground(t *testing.T) {
 func TestRenderHeadUsesBodyColor(t *testing.T) {
 	for _, head := range HeadValues {
 		// The jaw mouth covers the probe by design, so pin a mouth that doesn't.
-		s := Resolve(Spec{Head: head, Mouth: "line", Body: "#3366cc"}, 3)
+		s := Resolve(Spec{Head: head, Mouth: "line", Face: &neutral, Body: "#3366cc"}, 3)
 		if got := pixel(Render(s, 200), 200, probeX, probeY); !near(got, color.NRGBA{0x33, 0x66, 0xcc, 0xff}) {
 			t.Errorf("head %s: probe = %v, want body color", head, got)
 		}
@@ -104,7 +107,7 @@ func TestRenderShoulders(t *testing.T) {
 }
 
 func TestRenderCyclopsUsesGlow(t *testing.T) {
-	s := Resolve(Spec{Eyes: "cyclops", Glow: "#00ff00"}, 4)
+	s := Resolve(Spec{Eyes: "cyclops", Face: &neutral, Glow: "#00ff00"}, 4)
 	// A point on the lens ring: right of center, between pupil (r40) and rim (r95).
 	got := pixel(Render(s, 200), 200, 565, 444)
 	if !near(got, color.NRGBA{0, 255, 0, 255}) {
@@ -117,7 +120,7 @@ func TestRenderJaw(t *testing.T) {
 	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
 	jaw := shade(body, jawShade)
 	for _, head := range HeadValues {
-		s := Resolve(Spec{Head: head, Mouth: "jaw", Expression: "flat", Body: "#3366cc",
+		s := Resolve(Spec{Head: head, Mouth: "jaw", Expression: "flat", Face: &neutral, Body: "#3366cc",
 			Rivets: &no, Panels: &no, Blush: &no}, 3)
 		img := Render(s, 1000)
 		for _, p := range []struct {
@@ -139,10 +142,11 @@ func TestRenderJaw(t *testing.T) {
 func TestRenderExpressionBendsLine(t *testing.T) {
 	no := false
 	render := func(expr string) image.Image {
-		return Render(Resolve(Spec{Mouth: "line", Expression: expr, Body: "#3366cc", Blush: &no}, 3), 1000)
+		return Render(Resolve(Spec{Mouth: "line", Expression: expr, Face: &neutral, Body: "#3366cc", Blush: &no}, 3), 1000)
 	}
 	// The line's left end sits above center for a smile and below it for a frown.
-	endX, above, below := 415.0, mouthY(headBox)-18, mouthY(headBox)+18
+	_, my := facePos(Spec{Head: "square", Face: &neutral}, headBox)
+	endX, above, below := 415.0, my-18, my+18
 	smile, frown := render("smile"), render("frown")
 	if got := pixel(smile, 1000, endX, above); !near(got, ink) {
 		t.Errorf("smile: end above center = %v, want ink", got)
@@ -154,3 +158,84 @@ func TestRenderExpressionBendsLine(t *testing.T) {
 		t.Errorf("smile: end below center is ink, want face")
 	}
 }
+
+func TestRenderFaceMovesEyes(t *testing.T) {
+	no := false
+	glow := color.NRGBA{0, 255, 0, 255}
+	pupil := shade(glow, 0.55)
+	for _, face := range []int{-2, -1, 0, 1, 2} {
+		for _, head := range HeadValues {
+			s := Resolve(Spec{Head: head, Eyes: "cyclops", Face: &face, Glow: "#00ff00",
+				Rivets: &no, Panels: &no, Blush: &no}, 5)
+			ey, _ := facePos(s, headBox)
+			if got := pixel(Render(s, 1000), 1000, 500, ey); !near(got, pupil) {
+				t.Errorf("face=%d head=%s: pupil at y=%v = %v, want %v", face, head, ey, got, pupil)
+			}
+		}
+	}
+	up, _ := facePos(Spec{Head: "square", Face: ptr(2)}, headBox)
+	mid, _ := facePos(Spec{Head: "square", Face: ptr(0)}, headBox)
+	down, _ := facePos(Spec{Head: "square", Face: ptr(-2)}, headBox)
+	if !(up < mid && mid < down) {
+		t.Errorf("eye heights +2/0/-2 = %v/%v/%v, want increasing downward", up, mid, down)
+	}
+}
+
+func TestFacePosMouth(t *testing.T) {
+	_, m0 := facePos(Spec{Head: "dome", Face: ptr(0)}, headBox)
+	_, mUp := facePos(Spec{Head: "dome", Face: ptr(2)}, headBox)
+	_, mDown := facePos(Spec{Head: "dome", Face: ptr(-2)}, headBox)
+	if mUp != m0 {
+		t.Errorf("positive face moved the mouth: %v -> %v", m0, mUp)
+	}
+	if mDown <= m0 {
+		t.Errorf("face=-2 mouth at %v, want below %v", mDown, m0)
+	}
+}
+
+// TestRenderFaceFitsHead checks that at the highest face position the widest
+// eye style (the visor) and the tallest (the cyclops) stay inside every head
+// shape: just outside each one's outline must still be head, not background
+// or the head's own outline.
+func TestRenderFaceFitsHead(t *testing.T) {
+	no, top := false, 2
+	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
+	const gap = outline/2 + 4 // just past the eye's outline
+	for _, head := range HeadValues {
+		for _, eyes := range []string{"visor", "cyclops"} {
+			s := Resolve(Spec{Head: head, Eyes: eyes, Face: &top, Ears: "none", Antenna: "none",
+				Body: "#3366cc", Glow: "#3366cc", Background: "#ff0000", Rivets: &no, Panels: &no, Blush: &no}, 5) // glow = body hides the halo
+			ey, _ := facePos(s, headBox)
+			cx := headBox.CX()
+			probes := [][2]float64{{cx, ey - cyclopsRadius - gap}}
+			if eyes == "visor" {
+				probes = [][2]float64{{cx - visorHalfWidth - gap, ey}, {cx + visorHalfWidth + gap, ey}}
+			}
+			img := Render(s, 1000)
+			for _, p := range probes {
+				if got := pixel(img, 1000, p[0], p[1]); !near(got, body) {
+					t.Errorf("head %s, %s eyes: beside eye (%v,%v) = %v, want head color", head, eyes, p[0], p[1], got)
+				}
+			}
+		}
+	}
+}
+
+func TestRenderJawFollowsFace(t *testing.T) {
+	no := false
+	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
+	jaw := shade(body, jawShade)
+	render := func(face int) image.Image {
+		return Render(Resolve(Spec{Head: "square", Mouth: "jaw", Expression: "flat", Face: &face,
+			Body: "#3366cc", Rivets: &no, Panels: &no, Blush: &no}, 3), 1000)
+	}
+	// A point on the jaw's left arm at neutral is above the arm once squashed.
+	if got := pixel(render(0), 1000, 280, 545); !near(got, jaw) {
+		t.Errorf("face=0: arm = %v, want jaw", got)
+	}
+	if got := pixel(render(-2), 1000, 280, 545); !near(got, body) {
+		t.Errorf("face=-2: above arm = %v, want face", got)
+	}
+}
+
+func ptr(n int) *int { return &n }

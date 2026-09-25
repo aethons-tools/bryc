@@ -2,7 +2,7 @@ package robot
 
 import "math"
 
-func mouthY(b Layout) float64 { return b.Y + b.H*0.76 }
+func mouthY(s Spec, b Layout) float64 { _, my := facePos(s, b); return my }
 
 // maxBend is how far, in virtual units, the ends of a mouth at least
 // bendWidth wide move up (smile) or down (frown). Narrower mouths bend
@@ -17,6 +17,7 @@ const (
 	jawShade    = 0.82 // jaw color relative to the body color
 	jawBand     = 42.0 // width of the U's arms up the cheeks
 	jawOverhang = 1.04 // scale of the head outline the jaw follows, so it overlaps the edge
+	jawHeight   = 0.18 // how far the arms rise above the mouth line, as a fraction of head height
 )
 
 // curve returns a mouth's centerline height at x for a mouth centered at cx
@@ -53,7 +54,7 @@ func bentRect(c *canvas, expression string, cx, y, w, h float64) {
 var mouthParts = map[string]part{
 	"grille": func(c *canvas, s Spec, b Layout) {
 		const w, h = 240.0, 70.0
-		cx, y := b.CX(), mouthY(b)
+		cx, y := b.CX(), mouthY(s, b)
 		bentRect(c, s.Expression, cx, y, w, h)
 		c.fillOutlined(metal)
 		for x := cx - 80; x <= cx+80; x += 40 {
@@ -64,12 +65,12 @@ var mouthParts = map[string]part{
 		c.strokeWith(ink, 8)
 	},
 	"slot": func(c *canvas, s Spec, b Layout) {
-		bentRect(c, s.Expression, b.CX(), mouthY(b), 120, 36)
+		bentRect(c, s.Expression, b.CX(), mouthY(s, b), 120, 36)
 		c.fillOutlined(screen)
 	},
 	"line": func(c *canvas, s Spec, b Layout) {
 		const w, steps = 180.0, 24
-		cx, y := b.CX(), mouthY(b)
+		cx, y := b.CX(), mouthY(s, b)
 		for i := 0; i <= steps; i++ {
 			x := cx - w/2 + w*float64(i)/steps
 			c.dc.LineTo(x, curve(s.Expression, cx, y, w, x))
@@ -87,8 +88,8 @@ var mouthParts = map[string]part{
 // cut out using the even-odd fill rule.
 func drawJaw(c *canvas, s Spec, b Layout) {
 	dc := c.dc
-	top := b.Y + b.H*0.58
-	my := mouthY(b)
+	my := mouthY(s, b)
+	top := my - b.H*jawHeight
 	cx, cy := b.CX(), b.Y+b.H/2
 	innerL := func(y float64) float64 { return leftEdge(s.Head, b, y) + jawBand }
 	outerL := cx - jawOverhang*(cx-leftEdge(s.Head, b, cy+(top-cy)/jawOverhang))

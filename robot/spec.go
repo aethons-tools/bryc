@@ -35,6 +35,13 @@ const (
 	ShouldersMax = 100
 )
 
+// Face position range: 0 is neutral, negative squashes the face toward the
+// chin, positive stretches it toward the top of the head.
+const (
+	FaceMin = -2
+	FaceMax = 2
+)
+
 // Allowed values for each enum facet.
 var (
 	HeadValues       = []string{"square", "rounded", "dome", "trapezoid"}
@@ -49,7 +56,7 @@ var (
 // by Resolve; a resolved Spec has every field set.
 type Spec struct {
 	Head, Eyes, Mouth, Expression, Antenna, Ears string
-	Shoulders                                    *int
+	Face, Shoulders                              *int
 	Rivets, Panels, Blush                        *bool
 	// Colors are "#rrggbb"; Background may also be "none" (transparent).
 	Body, Accent, Glow, Background string
@@ -73,6 +80,7 @@ func (s *Spec) fields() []field {
 		{name: "eyes", kind: KindEnum, values: EyesValues, str: &s.Eyes},
 		{name: "mouth", kind: KindEnum, values: MouthValues, str: &s.Mouth},
 		{name: "expression", kind: KindEnum, values: ExpressionValues, str: &s.Expression},
+		{name: "face", kind: KindRange, min: FaceMin, max: FaceMax, num: &s.Face},
 		{name: "antenna", kind: KindEnum, values: AntennaValues, str: &s.Antenna},
 		{name: "ears", kind: KindEnum, values: EarsValues, str: &s.Ears},
 		{name: "shoulders", kind: KindRange, min: ShouldersMin, max: ShouldersMax, num: &s.Shoulders},

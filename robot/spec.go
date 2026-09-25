@@ -35,10 +35,10 @@ const (
 	ShouldersMax = 100
 )
 
-// Face position range: 0 is neutral, negative squashes the face toward the
-// chin, positive stretches it toward the top of the head.
+// Face position range: 0 is neutral, -1 moves the face down toward the
+// chin, +1 raises the eyes, +2 also raises the mouth under them (see face.go).
 const (
-	FaceMin = -2
+	FaceMin = -1
 	FaceMax = 2
 )
 

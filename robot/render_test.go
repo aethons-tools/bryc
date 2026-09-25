@@ -163,7 +163,7 @@ func TestRenderFaceMovesEyes(t *testing.T) {
 	no := false
 	glow := color.NRGBA{0, 255, 0, 255}
 	pupil := shade(glow, 0.55)
-	for _, face := range []int{-2, -1, 0, 1, 2} {
+	for _, face := range []int{-1, 0, 1, 2} {
 		for _, head := range HeadValues {
 			s := Resolve(Spec{Head: head, Eyes: "cyclops", Face: &face, Glow: "#00ff00",
 				Rivets: &no, Panels: &no, Blush: &no}, 5)
@@ -173,23 +173,59 @@ func TestRenderFaceMovesEyes(t *testing.T) {
 			}
 		}
 	}
-	up, _ := facePos(Spec{Head: "square", Face: ptr(2)}, headBox)
-	mid, _ := facePos(Spec{Head: "square", Face: ptr(0)}, headBox)
-	down, _ := facePos(Spec{Head: "square", Face: ptr(-2)}, headBox)
-	if !(up < mid && mid < down) {
-		t.Errorf("eye heights +2/0/-2 = %v/%v/%v, want increasing downward", up, mid, down)
+	for _, head := range HeadValues {
+		one, _ := facePos(Spec{Head: head, Face: ptr(1)}, headBox)
+		two, _ := facePos(Spec{Head: head, Face: ptr(2)}, headBox)
+		mid, _ := facePos(Spec{Head: head, Face: ptr(0)}, headBox)
+		down, _ := facePos(Spec{Head: head, Face: ptr(-1)}, headBox)
+		if !(one < mid && mid < down) {
+			t.Errorf("%s: eye heights +1/0/-1 = %v/%v/%v, want increasing downward", head, one, mid, down)
+		}
+		if one != two {
+			t.Errorf("%s: eyes at +2 (%v) should match +1 (%v)", head, two, one)
+		}
 	}
 }
 
 func TestFacePosMouth(t *testing.T) {
-	_, m0 := facePos(Spec{Head: "dome", Face: ptr(0)}, headBox)
-	_, mUp := facePos(Spec{Head: "dome", Face: ptr(2)}, headBox)
-	_, mDown := facePos(Spec{Head: "dome", Face: ptr(-2)}, headBox)
-	if mUp != m0 {
-		t.Errorf("positive face moved the mouth: %v -> %v", m0, mUp)
+	for _, head := range HeadValues {
+		_, m0 := facePos(Spec{Head: head, Face: ptr(0)}, headBox)
+		_, m1 := facePos(Spec{Head: head, Face: ptr(1)}, headBox)
+		_, m2 := facePos(Spec{Head: head, Face: ptr(2)}, headBox)
+		_, mDown := facePos(Spec{Head: head, Face: ptr(-1)}, headBox)
+		if m1 != m0 {
+			t.Errorf("%s: face=+1 moved the mouth: %v -> %v", head, m0, m1)
+		}
+		if m2 >= m1 {
+			t.Errorf("%s: face=+2 mouth at %v, want above +1's %v", head, m2, m1)
+		}
+		if mDown <= m0 {
+			t.Errorf("%s: face=-1 mouth at %v, want below %v", head, mDown, m0)
+		}
 	}
-	if mDown <= m0 {
-		t.Errorf("face=-2 mouth at %v, want below %v", mDown, m0)
+}
+
+// TestRenderFaceTopNoCollision checks that at face=+2, where the mouth moves
+// up toward the eyes, the tallest eye (cyclops) and tallest mouth (grille)
+// still have face showing between them.
+func TestRenderFaceTopNoCollision(t *testing.T) {
+	no, top := false, 2
+	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
+	for _, head := range HeadValues {
+		for _, expr := range ExpressionValues {
+			s := Resolve(Spec{Head: head, Eyes: "cyclops", Mouth: "grille", Expression: expr, Face: &top,
+				Body: "#3366cc", Glow: "#3366cc", Rivets: &no, Panels: &no, Blush: &no}, 5)
+			ey, my := facePos(s, headBox)
+			eyeBottom := ey + cyclopsRadius + outline/2
+			mouthTop := my - grilleHalfHeight - outline/2 // the grille's center never bends
+			if mouthTop-eyeBottom < 8 {
+				t.Errorf("%s/%s: only %v units between eye and mouth", head, expr, mouthTop-eyeBottom)
+				continue
+			}
+			if got := pixel(Render(s, 1000), 1000, headBox.CX(), (eyeBottom+mouthTop)/2); !near(got, body) {
+				t.Errorf("%s/%s: between eye and mouth = %v, want face", head, expr, got)
+			}
+		}
 	}
 }
 
@@ -233,8 +269,8 @@ func TestRenderJawFollowsFace(t *testing.T) {
 	if got := pixel(render(0), 1000, 280, 545); !near(got, jaw) {
 		t.Errorf("face=0: arm = %v, want jaw", got)
 	}
-	if got := pixel(render(-2), 1000, 280, 545); !near(got, body) {
-		t.Errorf("face=-2: above arm = %v, want face", got)
+	if got := pixel(render(-1), 1000, 280, 545); !near(got, body) {
+		t.Errorf("face=-1: above arm = %v, want face", got)
 	}
 }
 

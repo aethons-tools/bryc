@@ -148,7 +148,8 @@ func TestParseQueryShoulders(t *testing.T) {
 		"shoulders=150":  "shoulders: 150 is outside -100 to 100",
 		"shoulders=-101": "shoulders: -101 is outside -100 to 100",
 		"shoulders=wide": `shoulders: "wide" is not an integer`,
-		"face=3":         "face: 3 is outside -2 to 2",
+		"face=3":         "face: 3 is outside -1 to 2",
+		"face=-2":        "face: -2 is outside -1 to 2",
 	} {
 		q, _ := url.ParseQuery(raw)
 		if _, err := ParseQuery(q); err == nil || !strings.Contains(err.Error(), want) {

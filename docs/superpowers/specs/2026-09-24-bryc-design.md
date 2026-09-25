@@ -53,7 +53,7 @@ Each facet is either **pinned** (set by the user) or **unset** (randomized).
 | `eyes`       | `round`, `visor`, `cyclops`, `led`                  |
 | `mouth`      | `grille`, `slot` (small rectangular opening), `line`, `jaw` (U-shaped plate hugging the lower face, following the head shape) |
 | `expression` | `flat`, `smile`, `frown` — a slight bend applied to any mouth |
-| `face`       | integer `-2`–`2`: `0` neutral; negative moves eyes, mouth and blush down and closer together; positive raises the eyes toward the top of the head (as far as the head shape allows). Parts move, never deform |
+| `face`       | integer `-1`–`2`: `0` neutral; `-1` moves eyes, mouth and blush down and closer together; `+1` raises the eyes toward the top of the head (less on dome/trapezoid heads); `+2` keeps the `+1` eyes and raises the mouth close under them. Parts move, never deform |
 | `antenna`    | `none`, `ball`, `double`, `bolt`                    |
 | `ears`       | `none`, `bolts`, `dials`                            |
 | `shoulders`  | integer `-100`–`100`: `0` square, positive rounds the corners (to very soft at `100`), negative raises one spike per shoulder (tallest at `-100`) |

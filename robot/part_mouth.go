@@ -12,6 +12,9 @@ const (
 	bendWidth = 240.0
 )
 
+// grilleHalfHeight is half the grille's height; the grille is the tallest mouth.
+const grilleHalfHeight = 35.0
+
 // Jaw geometry: the jaw is a U-shaped plate hugging the lower face.
 const (
 	jawShade    = 0.82 // jaw color relative to the body color
@@ -53,7 +56,7 @@ func bentRect(c *canvas, expression string, cx, y, w, h float64) {
 
 var mouthParts = map[string]part{
 	"grille": func(c *canvas, s Spec, b Layout) {
-		const w, h = 240.0, 70.0
+		const w, h = 240.0, 2 * grilleHalfHeight
 		cx, y := b.CX(), mouthY(s, b)
 		bentRect(c, s.Expression, cx, y, w, h)
 		c.fillOutlined(metal)

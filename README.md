@@ -16,6 +16,7 @@ go run ./cmd/bryc --face=2                          # face position -1 (low) .. 
 go run ./cmd/bryc --eyes=round --eyecount=6        # 2, 4 or 6 round eyes
 go run ./cmd/bryc --eyes=round --eyesize=1         # smaller round eyes (1..4, capped by eyecount)
 go run ./cmd/bryc --eyecount=1 --eyesize=4 --eyestyle=glower  # the HAL look
+go run ./cmd/bryc --eyes=focused --eyestyle=bright  # eyes: round oval focused visor
 go run ./cmd/bryc --seed=42 --size=1024 -o bot.png # reproduce a robot
 go run ./cmd/bryc -h                               # all options
 ```

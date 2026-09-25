@@ -113,7 +113,7 @@ func TestFacets(t *testing.T) {
 		"head":       {"square", "rounded", "dome", "inverted-dome", "trapezoid", "inverted-trapezoid"},
 		"mouth":      {"grille", "slot", "line", "jaw"},
 		"expression": {"flat", "smile", "frown"},
-		"eyes":       {"round", "visor"},
+		"eyes":       {"round", "oval", "focused", "visor"},
 		"eyecount":   {"1", "2", "4", "6"},
 		"eyesize":    {"1", "2", "3", "4"},
 		"eyestyle":   {"glower", "bright", "dead"},
@@ -130,8 +130,9 @@ func TestFacets(t *testing.T) {
 		}
 	}
 	for _, name := range []string{"eyecount", "eyesize", "eyestyle"} {
-		if d := byName[name].DependsOn; d == nil || *d != (Dependency{Facet: "eyes", Value: "round"}) {
-			t.Errorf("%s dependsOn = %+v, want eyes=round", name, d)
+		want := &Dependency{Facet: "eyes", Values: []string{"round", "oval", "focused"}}
+		if d := byName[name].DependsOn; !reflect.DeepEqual(d, want) {
+			t.Errorf("%s dependsOn = %+v, want %+v", name, d, want)
 		}
 	}
 	if byName["head"].DependsOn != nil {

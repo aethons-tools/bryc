@@ -3,6 +3,7 @@ package robot
 import (
 	"image"
 	"image/color"
+	"math"
 	"net/url"
 	"strconv"
 	"testing"
@@ -577,5 +578,80 @@ func TestRenderSmallGlowerEye(t *testing.T) {
 	}
 	if got := pixel(img, 1000, p[0]+17, p[1]); !near(got, screen) { // between the glow fade and the ring
 		t.Errorf("lens = %v, want black", got)
+	}
+}
+
+// TestRenderOvalEye checks an oval eye is two-thirds as tall as a round one:
+// a point 85% of the radius above the center is eye on a round eye and face
+// on an oval. (Dead eyes have no glow to blur the edge.)
+func TestRenderOvalEye(t *testing.T) {
+	no := false
+	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
+	for _, c := range []struct {
+		eyes string
+		want color.NRGBA
+	}{{"round", screen}, {"oval", body}} {
+		s := Resolve(Spec{Eyes: c.eyes, EyeCount: "2", EyeSize: "3", EyeStyle: "dead", Face: &neutral,
+			Body: "#3366cc", Blush: &no}, 4)
+		p := roundEyeCenters(s, headBox)[1] // right eye; the glint sits up-left
+		if got := pixel(Render(s, 1000), 1000, p[0], p[1]-0.85*roundEyeRadius); !near(got, c.want) {
+			t.Errorf("%s: above center = %v, want %v", c.eyes, got, c.want)
+		}
+	}
+}
+
+// TestEyeTilt checks focused eyes tilt their inner ends down by 20 degrees
+// (left eyes clockwise, right eyes counter-clockwise, on screen), a single
+// centered eye stays level, and round and oval eyes never tilt.
+func TestEyeTilt(t *testing.T) {
+	const deg = math.Pi / 180
+	for _, c := range []struct {
+		eyes, count string
+		want        []float64 // per eye, in roundEyeCenters order
+	}{
+		{"focused", "2", []float64{20 * deg, -20 * deg}},
+		{"focused", "4", []float64{20 * deg, -20 * deg, 20 * deg, -20 * deg}},
+		{"focused", "1", []float64{0}},
+		{"oval", "2", []float64{0, 0}},
+		{"round", "2", []float64{0, 0}},
+	} {
+		s := Spec{Eyes: c.eyes, EyeCount: c.count, Face: &neutral}
+		for i, p := range roundEyeCenters(s, headBox) {
+			if got := eyeTilt(s, headBox, p[0]); math.Abs(got-c.want[i]) > 1e-9 {
+				t.Errorf("%s x%s eye %d: tilt %v, want %v", c.eyes, c.count, i, got, c.want[i])
+			}
+		}
+	}
+}
+
+// TestRenderFocusedEyeDirection checks the tilt direction in pixels: just
+// inside the left eye's inner end, along its tilted axis, is inside a focused
+// eye but on the outline of a level oval.
+func TestRenderFocusedEyeDirection(t *testing.T) {
+	no := false
+	for _, c := range []struct {
+		eyes   string
+		inside bool
+	}{{"focused", true}, {"oval", false}} {
+		s := Resolve(Spec{Eyes: c.eyes, EyeCount: "2", EyeSize: "3", EyeStyle: "dead", Face: &neutral,
+			Body: "#3366cc", Blush: &no}, 4)
+		p := roundEyeCenters(s, headBox)[0] // left eye: its inner end is on the right
+		a, d := focusTilt, 0.85*roundEyeRadius
+		got := pixel(Render(s, 1000), 1000, p[0]+d*math.Cos(a), p[1]+d*math.Sin(a))
+		if near(got, screen) != c.inside {
+			t.Errorf("%s: along the tilted axis = %v, inside=%v", c.eyes, got, c.inside)
+		}
+	}
+}
+
+// TestTiltedOvalWithinRound checks a tilted oval never reaches past the round
+// eye it replaces, so every face-fit rule for round eyes still holds.
+func TestTiltedOvalWithinRound(t *testing.T) {
+	r := 1.0
+	a, b := r, r*ovalAspect
+	halfW := math.Hypot(a*math.Cos(focusTilt), b*math.Sin(focusTilt))
+	halfH := math.Hypot(a*math.Sin(focusTilt), b*math.Cos(focusTilt))
+	if halfW > r || halfH > r {
+		t.Errorf("tilted oval reaches %v wide, %v tall; round eye is %v", halfW, halfH, r)
 	}
 }

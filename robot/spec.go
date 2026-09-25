@@ -45,7 +45,7 @@ const (
 // Allowed values for each enum facet.
 var (
 	HeadValues       = []string{"square", "rounded", "dome", "inverted-dome", "trapezoid", "inverted-trapezoid"}
-	EyesValues       = []string{"round", "visor"}
+	EyesValues       = []string{"round", "oval", "focused", "visor"}
 	EyeCountValues   = []string{"1", "2", "4", "6"}         // round eyes only: one centered eye, or 1-3 stacked pairs
 	EyeSizeValues    = []string{"1", "2", "3", "4"}         // round eyes only, capped by the eye count (4 needs a single eye)
 	EyeStyleValues   = []string{"glower", "bright", "dead"} // round eyes only
@@ -75,7 +75,7 @@ type field struct {
 	str      *string  // KindEnum and KindColor
 	flag     **bool   // KindBool
 	num      **int    // KindRange
-	// dependsOn names a facet value this facet only has an effect with.
+	// dependsOn names the facet values this facet only has an effect with.
 	dependsOn *Dependency
 }
 
@@ -85,11 +85,11 @@ func (s *Spec) fields() []field {
 		{name: "tall", kind: KindBool, flag: &s.Tall},
 		{name: "eyes", kind: KindEnum, values: EyesValues, str: &s.Eyes},
 		{name: "eyecount", kind: KindEnum, values: EyeCountValues, str: &s.EyeCount,
-			dependsOn: &Dependency{Facet: "eyes", Value: "round"}},
+			dependsOn: roundFamily},
 		{name: "eyesize", kind: KindEnum, values: EyeSizeValues, str: &s.EyeSize,
-			dependsOn: &Dependency{Facet: "eyes", Value: "round"}},
+			dependsOn: roundFamily},
 		{name: "eyestyle", kind: KindEnum, values: EyeStyleValues, str: &s.EyeStyle,
-			dependsOn: &Dependency{Facet: "eyes", Value: "round"}},
+			dependsOn: roundFamily},
 		{name: "mouth", kind: KindEnum, values: MouthValues, str: &s.Mouth},
 		{name: "expression", kind: KindEnum, values: ExpressionValues, str: &s.Expression},
 		{name: "face", kind: KindRange, min: FaceMin, max: FaceMax, num: &s.Face},
@@ -133,16 +133,20 @@ type Facet struct {
 	Values []string `json:"values,omitempty"`
 	Min    *int     `json:"min,omitempty"` // KindRange only
 	Max    *int     `json:"max,omitempty"` // KindRange only
-	// DependsOn, if set, is the facet value this facet needs to have any
+	// DependsOn, if set, is the facet values this facet needs to have any
 	// effect; it is still resolved (randomly, if unset) either way.
 	DependsOn *Dependency `json:"dependsOn,omitempty"`
 }
 
-// Dependency is a facet value another facet depends on.
+// Dependency is the set of values of another facet a facet depends on.
 type Dependency struct {
-	Facet string `json:"facet"`
-	Value string `json:"value"`
+	Facet  string   `json:"facet"`
+	Values []string `json:"values"`
 }
+
+// roundFamily is what the round-eye facets (count, size, style) depend on:
+// oval and focused eyes are reshaped round eyes.
+var roundFamily = &Dependency{Facet: "eyes", Values: []string{"round", "oval", "focused"}}
 
 // Facets lists every facet in display order.
 func Facets() []Facet {

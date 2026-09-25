@@ -104,7 +104,7 @@ function checkbox(text) {
 const labels = { eyecount: 'eye count', eyesize: 'eye size', eyestyle: 'eye style' };
 
 // Facets that only matter for some value of another facet (e.g. eyecount
-// needs round eyes) are greyed out while the current robot doesn't have it.
+// needs round-family eyes) are greyed out while the current robot doesn't have it.
 const dependents = []; // {dep: {facet, value}, row}
 
 function track(f, rowEl) {
@@ -114,9 +114,9 @@ function track(f, rowEl) {
 
 function updateDependents(resolved) {
   for (const { dep, row } of dependents) {
-    const inactive = resolved.get(dep.facet) !== dep.value;
+    const inactive = !dep.values.includes(resolved.get(dep.facet));
     row.classList.toggle('inactive', inactive);
-    row.title = inactive ? `Only applies when ${dep.facet} is ${dep.value}` : '';
+    row.title = inactive ? `Only applies when ${dep.facet} is ${dep.values.join(', ')}` : '';
     for (const el of row.querySelectorAll('select, input')) el.disabled = inactive;
   }
 }

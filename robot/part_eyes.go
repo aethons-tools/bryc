@@ -1,6 +1,9 @@
 package robot
 
-import "image/color"
+import (
+	"image/color"
+	"math"
+)
 
 const eyeGap = 110 // distance from the head's center line to each eye
 
@@ -60,14 +63,49 @@ const (
 
 func eyeY(s Spec, b Layout) float64 { ey, _ := facePos(s, b); return ey }
 
-var eyeParts = map[string]part{
-	"round": func(c *canvas, s Spec, b Layout) {
-		glow, r := parseHex(s.Glow), roundEyeR(s)
-		draw := eyeStyles[s.EyeStyle]
-		for _, p := range roundEyeCenters(s, b) {
-			draw(c, p[0], p[1], r, glow)
+// Oval and focused eyes are round eyes reshaped: an oval is squashed to
+// ovalAspect of its height, and a focused eye is an oval tilted so its inner
+// end points down by focusTilt.
+const (
+	ovalAspect = 2.0 / 3
+	focusTilt  = 20 * math.Pi / 180
+)
+
+// eyeTilt is the rotation of the eye centered at x: focused eyes tilt their
+// inner ends down (clockwise on screen for eyes left of center, counter-
+// clockwise for eyes right of it); a single centered eye has no inner end.
+func eyeTilt(s Spec, b Layout, x float64) float64 {
+	switch {
+	case s.Eyes != "focused" || x == b.CX():
+		return 0
+	case x < b.CX():
+		return focusTilt
+	}
+	return -focusTilt
+}
+
+// drawRoundFamily draws round, oval and focused eyes: each is a round eye in
+// its style, squashed and tilted as a whole. gg doesn't scale line widths, so
+// outlines keep their thickness.
+func drawRoundFamily(c *canvas, s Spec, b Layout) {
+	glow, r := parseHex(s.Glow), roundEyeR(s)
+	draw := eyeStyles[s.EyeStyle]
+	for _, p := range roundEyeCenters(s, b) {
+		x, y := p[0], p[1]
+		c.dc.Push()
+		c.dc.RotateAbout(eyeTilt(s, b, x), x, y)
+		if s.Eyes != "round" {
+			c.dc.ScaleAbout(1, ovalAspect, x, y)
 		}
-	},
+		draw(c, x, y, r, glow)
+		c.dc.Pop()
+	}
+}
+
+var eyeParts = map[string]part{
+	"round":   drawRoundFamily,
+	"oval":    drawRoundFamily,
+	"focused": drawRoundFamily,
 	"visor": func(c *canvas, s Spec, b Layout) {
 		glow, y := parseHex(s.Glow), eyeY(s, b)
 		c.dc.DrawRoundedRectangle(b.CX()-visorHalfWidth, y-55, 2*visorHalfWidth, 110, 55)

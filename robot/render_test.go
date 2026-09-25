@@ -681,9 +681,10 @@ func TestRenderGlintsShareOneLight(t *testing.T) {
 	}
 }
 
-// TestLashGeometry checks each lash leaves the eye's upper-outer edge and
-// ends further up and further out: left on left eyes, right on right eyes,
-// including tilted focused eyes.
+// TestLashGeometry checks each lash leaves the eye's upper-outer edge along
+// the eye's outline (tangentially, heading outward), then curls up to end
+// further up and further out: left on left eyes, right on right eyes,
+// including oval and tilted focused eyes.
 func TestLashGeometry(t *testing.T) {
 	for _, eyes := range []string{"round", "oval", "focused"} {
 		s := Spec{Eyes: eyes, EyeCount: "2", EyeSize: "3", Face: &neutral}
@@ -699,6 +700,16 @@ func TestLashGeometry(t *testing.T) {
 			}
 			if (l.end[0]-l.start[0])*out <= 0 || l.end[1] >= l.start[1] {
 				t.Errorf("%s eye at %v: lash runs %v -> %v, want up and out", eyes, p, l.start, l.end)
+			}
+			// The outline's tangent at the start: nudge along the outline in
+			// the eye's own frame, then map to the canvas like lashFor does.
+			tx, ty := outlineTangent(s, headBox, p[0], p[1], r)
+			dx, dy := l.c1[0]-l.start[0], l.c1[1]-l.start[1]
+			if cross := dx*ty - dy*tx; math.Abs(cross) > 1e-6*math.Hypot(dx, dy) {
+				t.Errorf("%s eye at %v: lash leaves along (%.2f,%.2f), outline runs (%.2f,%.2f)", eyes, p, dx, dy, tx, ty)
+			}
+			if dx*out <= 0 {
+				t.Errorf("%s eye at %v: lash leaves inward", eyes, p)
 			}
 		}
 	}
@@ -721,7 +732,7 @@ func TestRenderEyelashes(t *testing.T) {
 		// single eye, where it would be if it had one.
 		p := roundEyeCenters(s, headBox)[0]
 		l := lashFor(s, headBox, p[0]-1, p[1], r) // just left of center: the left-eye lash
-		mx, my := quadAt(l.start, l.ctrl, l.end, 0.5)
+		mx, my := l.at(0.5)
 		if got := near(pixel(img, 1000, mx, my), ink); got != c.want {
 			t.Errorf("count %s eyelashes=%v: lash drawn = %v, want %v", c.count, *c.on, got, c.want)
 		}
@@ -740,12 +751,15 @@ func TestLashesInsideHead(t *testing.T) {
 						b, r := headLayout(s), roundEyeR(s)
 						for _, p := range roundEyeCenters(s, b) {
 							l := lashFor(s, b, p[0], p[1], r)
-							x, y := l.end[0], l.end[1]
 							reach := l.width/2 + outline/2
-							left := leftEdge(head, b, y)
-							if x-reach < left || x+reach > 2*b.CX()-left || y-reach < headTop(head, b, x) {
-								t.Errorf("%s tall=%v face=%d %s x%s: lash tip %v leaves the head",
-									head, tall, face, eyes, count, l.end)
+							for i := 0; i <= 10; i++ { // the whole curve, not just its tip
+								x, y := l.at(float64(i) / 10)
+								left := leftEdge(head, b, y)
+								if x-reach < left || x+reach > 2*b.CX()-left || y-reach < headTop(head, b, x) {
+									t.Errorf("%s tall=%v face=%d %s x%s: lash point (%.0f,%.0f) leaves the head",
+										head, tall, face, eyes, count, x, y)
+									break
+								}
 							}
 						}
 					}
@@ -753,4 +767,27 @@ func TestLashesInsideHead(t *testing.T) {
 			}
 		}
 	}
+}
+
+// outlineTangent is the direction of the eye's outline at the lash's attach
+// point, computed independently of lashFor by differencing two points on the
+// eye's edge.
+func outlineTangent(s Spec, b Layout, x, y, r float64) (float64, float64) {
+	out := 1.0
+	if x <= b.CX() {
+		out = -1
+	}
+	aspect := 1.0
+	if s.Eyes != "round" {
+		aspect = ovalAspect
+	}
+	tilt := eyeTilt(s, b, x)
+	edge := func(a float64) (float64, float64) {
+		ex, ey := out*r*math.Cos(a), -aspect*r*math.Sin(a)
+		return ex*math.Cos(tilt) - ey*math.Sin(tilt), ex*math.Sin(tilt) + ey*math.Cos(tilt)
+	}
+	const h = 1e-6
+	x0, y0 := edge(lashAttach + h)
+	x1, y1 := edge(lashAttach - h)
+	return x1 - x0, y1 - y0
 }

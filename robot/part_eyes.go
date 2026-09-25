@@ -165,11 +165,13 @@ func (l lash) at(t float64) (float64, float64) {
 // attaches (measured up from the outer side), how long it is, and how thick.
 const (
 	lashAttach = 50 * math.Pi / 180
-	lashLength = 0.8
-	lashWidth  = 0.24 // at the base; the lash tapers to a point
+	lashLength = 1.6  // long enough to sweep past the head's outline near its sides
+	lashWidth  = 0.48 // at the base; the lash tapers to a point
 )
 
-// lashFor is the eyelash for the eye of radius r centered at (x, y). It
+// lashFor is the eyelash for the eye of radius r centered at (x, y). Lashes
+// are drawn over the head, so near its sides they may sweep past its outline.
+// It
 // leaves the eye's upper-outer edge (outer is away from the head's center
 // line; a centered eye counts as left) along the eye's outline, continuing
 // the curve of the upper lid outward, then curls up. It follows the eye's

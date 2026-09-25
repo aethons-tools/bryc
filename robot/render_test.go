@@ -739,9 +739,10 @@ func TestRenderEyelashes(t *testing.T) {
 	}
 }
 
-// TestLashesInsideHead checks every lash tip stays inside the head, clear of
-// its outline, on every head, height, face position and eye layout.
-func TestLashesInsideHead(t *testing.T) {
+// TestLashesOnCanvas checks every lash stays on the canvas on every head,
+// height, face position and eye layout. Lashes may sweep past the head's
+// outline (they're drawn on top of it), but never off the image.
+func TestLashesOnCanvas(t *testing.T) {
 	for _, head := range HeadValues {
 		for _, tall := range []bool{false, true} {
 			for face := FaceMin; face <= FaceMax; face++ {
@@ -751,12 +752,11 @@ func TestLashesInsideHead(t *testing.T) {
 						b, r := headLayout(s), roundEyeR(s)
 						for _, p := range roundEyeCenters(s, b) {
 							l := lashFor(s, b, p[0], p[1], r)
-							for i := 0; i <= 10; i++ { // the whole curve, not just its tip
+							for i := 0; i <= 10; i++ {
 								x, y := l.at(float64(i) / 10)
-								reach := l.halfWidth(float64(i)/10) + outline/2
-								left := leftEdge(head, b, y)
-								if x-reach < left || x+reach > 2*b.CX()-left || y-reach < headTop(head, b, x) {
-									t.Errorf("%s tall=%v face=%d %s x%s: lash point (%.0f,%.0f) leaves the head",
+								reach := l.halfWidth(float64(i) / 10)
+								if x-reach < 0 || x+reach > virtual || y-reach < 0 || y+reach > virtual {
+									t.Errorf("%s tall=%v face=%d %s x%s: lash point (%.0f,%.0f) leaves the canvas",
 										head, tall, face, eyes, count, x, y)
 									break
 								}

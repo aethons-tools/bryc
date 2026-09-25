@@ -47,7 +47,7 @@ func roundEyeCenters(s Spec, b Layout) [][2]float64 {
 
 // The widest and tallest eye styles, which bound how far the face can move.
 const (
-	visorHalfWidth = 190 // half the visor's width
+	visorHalfWidth = 180 // half the visor's width
 	cyclopsRadius  = 95
 )
 
@@ -74,10 +74,11 @@ var eyeParts = map[string]part{
 		glow, y := parseHex(s.Glow), eyeY(s, b)
 		c.dc.DrawRoundedRectangle(b.CX()-visorHalfWidth, y-55, 2*visorHalfWidth, 110, 55)
 		c.fillOutlined(screen)
-		c.dc.DrawRoundedRectangle(b.CX()-160, y-22, 320, 44, 22)
+		bar := visorHalfWidth - 30.0 // the glow bar sits 30 in from the visor's ends
+		c.dc.DrawRoundedRectangle(b.CX()-bar, y-22, 2*bar, 44, 22)
 		c.dc.SetColor(glow)
 		c.dc.Fill()
-		highlight(c, b.CX()-130, y-10, 9)
+		highlight(c, b.CX()-bar+30, y-10, 9)
 	},
 	"cyclops": drawHAL,
 	"led": func(c *canvas, s Spec, b Layout) {

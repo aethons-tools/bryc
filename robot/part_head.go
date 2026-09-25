@@ -52,8 +52,16 @@ var headPaths = map[string]func(dc *gg.Context, b Layout){
 }
 
 // cornerRadius is the bottom-corner radius of each head shape (0 if sharp).
-// The inverted dome's bottom is a half circle: corners of half its width.
-var cornerRadius = map[string]float64{"square": 18, "rounded": 120, "inverted-dome": headBox.W / 2}
+var cornerRadius = map[string]float64{"square": 18, "rounded": 120}
+
+// bottomRadius is the radius of the head's bottom corners; the inverted
+// dome's bottom is a half circle, so its corners are half the head's width.
+func bottomRadius(head string, b Layout) float64 {
+	if head == "inverted-dome" {
+		return b.W / 2
+	}
+	return cornerRadius[head]
+}
 
 // trapezoidInset is how far the trapezoid head's narrow end (its top, or its
 // bottom when inverted) sits inside the box.
@@ -80,7 +88,7 @@ func leftEdge(head string, b Layout, y float64) float64 {
 		dy := b.Y + r - y
 		return b.CX() - math.Sqrt(max(0, r*r-dy*dy))
 	}
-	r := cornerRadius[head]
+	r := bottomRadius(head, b)
 	if dy := y - (b.Y + b.H - r); r > 0 && dy > 0 {
 		x += r - math.Sqrt(max(0, r*r-dy*dy))
 	}

@@ -15,10 +15,10 @@ func drawPanels(c *canvas, s Spec, b Layout) {
 const (
 	rivetRadius = 12.0
 	rivetInset  = 45.0 // distance in from the head's edge
-	// maxRivetEdge is how far in from the box side the head's edge may be at
-	// the lower rivets' height; on heads that narrow more than this toward
-	// the bottom (the inverted dome), the lower rivets move up instead of
-	// crowding the mouth.
+	// maxRivetEdge is how far in from the normal head box's side the head's
+	// edge may be at the lower rivets' height; on heads that narrow more than
+	// this toward the bottom, the lower rivets move up instead of crowding
+	// the mouth, which is always at the center.
 	maxRivetEdge = 60.0
 )
 
@@ -27,7 +27,7 @@ const (
 func rivetCenters(s Spec, b Layout) [][2]float64 {
 	f := faceBox(b)
 	lower := f.Y + f.H - 50
-	for lower > f.Y+f.H*0.55 && leftEdge(s.Head, b, lower)-b.X > maxRivetEdge {
+	for lower > f.Y+f.H*0.55 && leftEdge(s.Head, b, lower) > headBox.X+maxRivetEdge {
 		lower -= 2
 	}
 	var centers [][2]float64

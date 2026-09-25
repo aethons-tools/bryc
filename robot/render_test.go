@@ -390,7 +390,9 @@ func TestRenderHeadShapes(t *testing.T) {
 		{"dome", false, [2]float64{262, 700}, [2]float64{262, 290}},               // round top, square bottom
 		{"square", true, [2]float64{500, 215}, [2]float64{500, 215 + 400}},        // tall reaches y 180
 		{"square", false, [2]float64{500, 300}, [2]float64{500, 215}},             // normal starts at y 260
-		{"inverted-dome", true, [2]float64{275, 215}, [2]float64{275, 700}},
+		{"inverted-dome", true, [2]float64{285, 215}, [2]float64{285, 700}},
+		{"square", false, [2]float64{262, 400}, [2]float64{235, 400}}, // normal width reaches x 250
+		{"rounded", true, [2]float64{278, 400}, [2]float64{256, 400}}, // tall is narrower: reaches x 265
 	}
 	for _, c := range cases {
 		tall := c.tall

@@ -25,12 +25,12 @@ type Layout struct{ X, Y, W, H float64 }
 func (b Layout) CX() float64 { return b.X + b.W/2 }
 
 // headBox is where a normal-height head is drawn, and tallHeadBox a tall
-// one: the same bottom, extended upward. Parts on the head's top (antenna,
+// one: the same bottom, extended upward and slightly narrower. Parts on the head's top (antenna,
 // top panel seam) follow its top; the face, ears and rivets are anchored to
 // its bottom (see faceBox), so a tall head reads as a taller forehead.
 var (
 	headBox     = Layout{X: 250, Y: 260, W: 500, H: 460}
-	tallHeadBox = Layout{X: 250, Y: 180, W: 500, H: 540}
+	tallHeadBox = Layout{X: 265, Y: 180, W: 470, H: 540}
 )
 
 // headLayout is the box s's head is drawn in.

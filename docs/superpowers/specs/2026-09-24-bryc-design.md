@@ -52,6 +52,7 @@ Each facet is either **pinned** (set by the user) or **unset** (randomized).
 | `head`       | `square`, `rounded`, `dome`, `trapezoid`            |
 | `eyes`       | `round`, `visor`, `cyclops`, `led`                  |
 | `eyecount`   | `2`, `4`, `6` — round eyes only: 1–3 stacked pairs, smaller as there are more. Resolved either way; the web page greys it out unless the eyes are round |
+| `eyesize`    | `1`, `2`, `3` — round eyes only: radius 25 / 40 / 58, capped at the eye count's size (6 eyes → 1, 4 → 2, 2 → 3); eyes keep their positions |
 | `mouth`      | `grille`, `slot` (small rectangular opening), `line`, `jaw` (U-shaped plate hugging the lower face, following the head shape) |
 | `expression` | `flat`, `smile`, `frown` — a slight bend applied to any mouth |
 | `face`       | integer `-1`–`2`: `0` neutral; `-1` moves eyes, mouth and blush down and closer together; `+1` raises the eyes toward the top of the head (less on dome/trapezoid heads); `+2` keeps the `+1` eyes and raises the mouth close under them. Parts move, never deform |

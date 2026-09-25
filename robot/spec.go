@@ -47,6 +47,7 @@ var (
 	HeadValues       = []string{"square", "rounded", "dome", "trapezoid"}
 	EyesValues       = []string{"round", "visor", "cyclops", "led"}
 	EyeCountValues   = []string{"2", "4", "6"} // round eyes only: 1, 2 or 3 stacked pairs
+	EyeSizeValues    = []string{"1", "2", "3"} // round eyes only, capped by the eye count
 	MouthValues      = []string{"grille", "slot", "line", "jaw"}
 	ExpressionValues = []string{"flat", "smile", "frown"}
 	AntennaValues    = []string{"none", "ball", "double", "bolt"}
@@ -56,9 +57,9 @@ var (
 // Spec describes one robot. A zero-valued field is unset and gets randomized
 // by Resolve; a resolved Spec has every field set.
 type Spec struct {
-	Head, Eyes, EyeCount, Mouth, Expression, Antenna, Ears string
-	Face, Shoulders                                        *int
-	Rivets, Panels, Blush                                  *bool
+	Head, Eyes, EyeCount, EyeSize, Mouth, Expression, Antenna, Ears string
+	Face, Shoulders                                                 *int
+	Rivets, Panels, Blush                                           *bool
 	// Colors are "#rrggbb"; Background may also be "none" (transparent).
 	Body, Accent, Glow, Background string
 }
@@ -82,6 +83,8 @@ func (s *Spec) fields() []field {
 		{name: "head", kind: KindEnum, values: HeadValues, str: &s.Head},
 		{name: "eyes", kind: KindEnum, values: EyesValues, str: &s.Eyes},
 		{name: "eyecount", kind: KindEnum, values: EyeCountValues, str: &s.EyeCount,
+			dependsOn: &Dependency{Facet: "eyes", Value: "round"}},
+		{name: "eyesize", kind: KindEnum, values: EyeSizeValues, str: &s.EyeSize,
 			dependsOn: &Dependency{Facet: "eyes", Value: "round"}},
 		{name: "mouth", kind: KindEnum, values: MouthValues, str: &s.Mouth},
 		{name: "expression", kind: KindEnum, values: ExpressionValues, str: &s.Expression},

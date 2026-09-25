@@ -105,7 +105,7 @@ func TestFacets(t *testing.T) {
 		names = append(names, f.Name)
 		byName[f.Name] = f
 	}
-	want := "head eyes eyecount mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
+	want := "head eyes eyecount eyesize mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
 	if strings.Join(names, " ") != want {
 		t.Errorf("facet order = %v", names)
 	}
@@ -114,6 +114,7 @@ func TestFacets(t *testing.T) {
 		"mouth":      {"grille", "slot", "line", "jaw"},
 		"expression": {"flat", "smile", "frown"},
 		"eyecount":   {"2", "4", "6"},
+		"eyesize":    {"1", "2", "3"},
 	}
 	for name, values := range enums {
 		if f := byName[name]; f.Kind != KindEnum || !reflect.DeepEqual(f.Values, values) {
@@ -126,8 +127,10 @@ func TestFacets(t *testing.T) {
 			t.Errorf("%s facet = %+v", name, f)
 		}
 	}
-	if d := byName["eyecount"].DependsOn; d == nil || *d != (Dependency{Facet: "eyes", Value: "round"}) {
-		t.Errorf("eyecount dependsOn = %+v, want eyes=round", d)
+	for _, name := range []string{"eyecount", "eyesize"} {
+		if d := byName[name].DependsOn; d == nil || *d != (Dependency{Facet: "eyes", Value: "round"}) {
+			t.Errorf("%s dependsOn = %+v, want eyes=round", name, d)
+		}
 	}
 	if byName["head"].DependsOn != nil {
 		t.Errorf("head should not depend on anything")

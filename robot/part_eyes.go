@@ -17,9 +17,19 @@ type roundLayout struct {
 }
 
 var roundLayouts = map[string]roundLayout{
-	"2": {r: roundEyeRadius, colGap: eyeGap, rows: 1},
-	"4": {r: 40, rowGap: 104, colGap: 100, rows: 2},
-	"6": {r: 25, rowGap: 68, colGap: 88, rows: 3},
+	"2": {r: roundEyeSizes["3"], colGap: eyeGap, rows: 1},
+	"4": {r: roundEyeSizes["2"], rowGap: 104, colGap: 100, rows: 2},
+	"6": {r: roundEyeSizes["1"], rowGap: 68, colGap: 88, rows: 3},
+}
+
+// roundEyeSizes is the radius for each eye size: the sizes the round-eye
+// layouts use for 6, 4 and 2 eyes.
+var roundEyeSizes = map[string]float64{"1": 25, "2": 40, "3": roundEyeRadius}
+
+// roundEyeR is the round-eye radius: the eye size, capped at the largest the
+// eye count's layout allows. Smaller eyes keep the layout's positions.
+func roundEyeR(s Spec) float64 {
+	return min(roundEyeSizes[s.EyeSize], roundLayouts[s.EyeCount].r)
 }
 
 // roundEyeCenters returns the center of every round eye, rows centered on
@@ -48,7 +58,7 @@ func eyeXs(b Layout) []float64 { return []float64{b.CX() - eyeGap, b.CX() + eyeG
 var eyeParts = map[string]part{
 	"round": func(c *canvas, s Spec, b Layout) {
 		glow := parseHex(s.Glow)
-		r := roundLayouts[s.EyeCount].r
+		r := roundEyeR(s)
 		k := r / roundEyeRadius // glow, hot spot and glint scale with the eye
 		for _, p := range roundEyeCenters(s, b) {
 			x, y := p[0], p[1]

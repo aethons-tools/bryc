@@ -292,7 +292,7 @@ func ptr(n int) *int { return &n }
 // and the glow drawn over the outline, so the outline is tinted, not pure ink.
 func TestRenderRoundEyeGlow(t *testing.T) {
 	glow := color.NRGBA{0, 255, 0, 255}
-	s := Resolve(Spec{Eyes: "round", EyeCount: "2", Face: &neutral, Glow: "#00ff00"}, 4)
+	s := Resolve(Spec{Eyes: "round", EyeCount: "2", EyeSize: "3", Face: &neutral, Glow: "#00ff00"}, 4)
 	ey, _ := facePos(s, headBox)
 	img := Render(s, 1000)
 	x := headBox.CX() + eyeGap // right eye; the glint sits up-left of center
@@ -336,5 +336,40 @@ func TestRoundEyesWithinFaceBounds(t *testing.T) {
 		if l.colGap+l.r > visorHalfWidth {
 			t.Errorf("count %s: reaches %v from center, visor reaches %v", count, l.colGap+l.r, visorHalfWidth)
 		}
+	}
+}
+
+// TestRoundEyeRadius checks eye size picks the round-eye radius, capped at
+// the largest size the eye count allows.
+func TestRoundEyeRadius(t *testing.T) {
+	cases := []struct {
+		count, size string
+		want        float64
+	}{
+		{"2", "3", 58}, {"2", "2", 40}, {"2", "1", 25},
+		{"4", "3", 40}, {"4", "2", 40}, {"4", "1", 25},
+		{"6", "3", 25}, {"6", "2", 25}, {"6", "1", 25},
+	}
+	for _, c := range cases {
+		if got := roundEyeR(Spec{EyeCount: c.count, EyeSize: c.size}); got != c.want {
+			t.Errorf("count %s size %s: radius %v, want %v", c.count, c.size, got, c.want)
+		}
+	}
+}
+
+func TestRenderEyeSizeShrinksEyes(t *testing.T) {
+	no := false
+	glow, body := color.NRGBA{0, 255, 0, 255}, color.NRGBA{0x33, 0x66, 0xcc, 0xff}
+	render := func(size string) image.Image {
+		return Render(Resolve(Spec{Eyes: "round", EyeCount: "2", EyeSize: size, Face: &neutral,
+			Glow: "#00ff00", Body: "#3366cc", Blush: &no}, 4), 1000)
+	}
+	ey, _ := facePos(Spec{Head: "square", Face: &neutral}, headBox)
+	x := headBox.CX() + eyeGap + 46 // inside a size-3 eye, clear of a size-1 eye and its glow
+	if got := pixel(render("3"), 1000, x, ey); !near(got, glow) {
+		t.Errorf("size 3: %v, want glow", got)
+	}
+	if got := pixel(render("1"), 1000, x, ey); !near(got, body) {
+		t.Errorf("size 1: %v, want face", got)
 	}
 }

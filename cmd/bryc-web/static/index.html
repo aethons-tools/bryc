@@ -10,6 +10,7 @@
     :root { --bg:#17171c; --panel:#212128; --ink:#ececf1; --muted:#9a9aa6; --line:#33333d; --accent:#7fb0e8; --err:#ff8a80; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; } /* beat display rules like label.row's grid */
   body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--ink); }
   header { padding: 20px 24px 0; }
   h1 { margin: 0; font-size: 22px; }
@@ -40,6 +41,14 @@
   .range.random input[type=range], .range.random output { opacity: .45; }
   .range output { width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
   .range label { color: var(--muted); font-size: 13px; display: flex; gap: 4px; align-items: center; }
+  .modes { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .modes button { border: none; border-radius: 0; padding: 6px 14px; }
+  .modes button[aria-pressed=true] { background: var(--accent); color: #fff; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 512px; }
+  .grid button { padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; }
+  .grid button:hover, .grid button:focus-visible { border-color: var(--accent); outline: none; }
+  .grid img { display: block; width: 100%; aspect-ratio: 1; border-radius: 8px;
+    background: repeating-conic-gradient(#8881 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
 </style>
 </head>
 <body>
@@ -49,7 +58,13 @@
 </header>
 <main>
   <section class="stage">
+    <div class="modes" role="group" aria-label="View">
+      <button id="mode-single" type="button" aria-pressed="true">Single</button>
+      <button id="mode-grid" type="button" aria-pressed="false">Grid</button>
+    </div>
     <img id="robot" alt="Generated robot portrait">
+    <!-- grid mode: nine robots that all follow the pinned options; click one to pick it -->
+    <div id="grid" class="grid" hidden></div>
     <div id="error" class="error" hidden></div>
     <div class="actions">
       <button id="randomize" class="primary" type="button">Randomize</button>
@@ -57,7 +72,7 @@
     </div>
   </section>
   <form id="controls" autocomplete="off">
-    <label class="row"><span>Seed</span><input id="seed" type="text" inputmode="numeric" placeholder="random"></label>
+    <label class="row" id="seed-row"><span>Seed</span><input id="seed" type="text" inputmode="numeric" placeholder="random"></label>
     <label class="row"><span>Palette</span><select id="palette"><option value="">none</option></select></label>
     <label class="row"><span>Size</span><input id="size" type="number" step="1"></label>
     <!-- facet controls are generated from /options.json -->
@@ -71,6 +86,13 @@ const sizeInput = document.getElementById('size');
 const img = document.getElementById('robot');
 const errorBox = document.getElementById('error');
 const download = document.getElementById('download');
+const grid = document.getElementById('grid');
+const seedRow = document.getElementById('seed-row');
+const modeButtons = { single: document.getElementById('mode-single'), grid: document.getElementById('mode-grid') };
+const GRID_COUNT = 9;
+const GRID_SIZE = 256; // thumbnails; pick one to see it at full size
+let mode = 'single';
+let gridURLs = [];
 // {name, read() -> string ('' = random), write(string), show(resolved value)}
 const controls = [];
 let defaultSize = 512;
@@ -112,9 +134,11 @@ function track(f, rowEl) {
   return rowEl;
 }
 
+// In grid mode there's no single robot, so dependents are judged from the
+// pinned options only: an unpinned facet could be anything, so they stay active.
 function updateDependents(resolved) {
   for (const { dep, row } of dependents) {
-    const inactive = !dep.values.includes(resolved.get(dep.facet));
+    const inactive = resolved.has(dep.facet) && !dep.values.includes(resolved.get(dep.facet));
     row.classList.toggle('inactive', inactive);
     row.title = inactive ? `Only applies when ${dep.facet} is ${dep.values.join(', ')}` : '';
     for (const el of row.querySelectorAll('select, input')) el.disabled = inactive;
@@ -206,21 +230,74 @@ function currentQuery() {
   const size = sizeInput.value.trim();
   if (size && size !== String(defaultSize)) q.set('size', size);
   const seed = seedInput.value.trim();
-  if (seed) q.set('seed', seed);
+  if (seed && mode === 'single') q.set('seed', seed);
   return q;
 }
 
-async function update() {
+function showError(text) {
+  errorBox.textContent = text;
+  errorBox.hidden = false;
+  img.hidden = true;
+  grid.hidden = true;
+}
+
+function setMode(m) {
+  mode = m;
+  for (const [name, button] of Object.entries(modeButtons)) button.setAttribute('aria-pressed', String(name === m));
+  seedRow.hidden = m === 'grid';
+  download.hidden = m === 'grid';
+  img.hidden = m === 'grid';
+  grid.hidden = m !== 'grid';
+}
+
+function update() {
+  return mode === 'grid' ? updateGrid() : updateSingle();
+}
+
+// updateGrid renders nine robots with the current pins, each on its own
+// random seed, at thumbnail size.
+async function updateGrid() {
+  const q = currentQuery();
+  const pins = new URLSearchParams(q);
+  const mine = ++ticket;
+  q.set('size', GRID_SIZE);
+  const responses = await Promise.all(Array.from({ length: GRID_COUNT }, () => fetch('/robot.png?' + q)));
+  if (mine !== ticket) return;
+  const bad = responses.find(r => !r.ok);
+  if (bad) return showError(await bad.text());
+  const blobs = await Promise.all(responses.map(r => r.blob()));
+  if (mine !== ticket) return;
+  for (const url of gridURLs) URL.revokeObjectURL(url);
+  gridURLs = blobs.map(b => URL.createObjectURL(b));
+  grid.replaceChildren(...responses.map((res, i) => {
+    const seed = res.headers.get('X-Bryc-Seed');
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.title = `seed ${seed} — click to pick this robot`;
+    const thumb = document.createElement('img');
+    thumb.src = gridURLs[i];
+    thumb.alt = `Robot with seed ${seed}`;
+    cell.append(thumb);
+    cell.addEventListener('click', () => {
+      seedInput.value = seed;
+      setMode('single');
+      update();
+    });
+    return cell;
+  }));
+  errorBox.hidden = true;
+  grid.hidden = false;
+  updateDependents(pins);
+  pins.set('mode', 'grid');
+  history.replaceState(null, '', '?' + pins);
+}
+
+async function updateSingle() {
   const q = currentQuery();
   const mine = ++ticket;
   const res = await fetch('/robot.png?' + q);
   if (mine !== ticket) return; // superseded by a newer change
-  if (!res.ok) {
-    errorBox.textContent = await res.text();
-    errorBox.hidden = false;
-    img.hidden = true;
-    return;
-  }
+  if (!res.ok) return showError(await res.text());
   const blob = await res.blob();
   if (mine !== ticket) return;
   const seed = res.headers.get('X-Bryc-Seed');
@@ -243,6 +320,8 @@ document.getElementById('randomize').addEventListener('click', () => {
   seedInput.value = '';
   update();
 });
+modeButtons.single.addEventListener('click', () => { if (mode !== 'single') { setMode('single'); update(); } });
+modeButtons.grid.addEventListener('click', () => { if (mode !== 'grid') { setMode('grid'); update(); } });
 form.addEventListener('change', update);
 form.addEventListener('submit', (e) => { e.preventDefault(); update(); });
 
@@ -258,6 +337,7 @@ form.addEventListener('submit', (e) => { e.preventDefault(); update(); });
   paletteSelect.value = params.get('palette') || '';
   sizeInput.value = params.get('size') || defaultSize;
   seedInput.value = params.get('seed') || '';
+  setMode(params.get('mode') === 'grid' ? 'grid' : 'single');
   update();
 })();
 </script>

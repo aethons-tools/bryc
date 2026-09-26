@@ -95,3 +95,28 @@ func TestResolveShouldersRange(t *testing.T) {
 		t.Errorf("200 seeds never produced both spiky and rounded shoulders")
 	}
 }
+
+func TestCellSeed(t *testing.T) {
+	seen := map[uint64]bool{}
+	for cell := 0; cell < 9; cell++ {
+		s := CellSeed(42, cell)
+		if s != CellSeed(42, cell) {
+			t.Fatalf("cell %d: not deterministic", cell)
+		}
+		if s == 42 || seen[s] {
+			t.Errorf("cell %d: seed %d repeats the grid seed or another cell", cell, s)
+		}
+		seen[s] = true
+	}
+	if CellSeed(42, 0) == CellSeed(43, 0) {
+		t.Error("different grid seeds gave the same cell seed")
+	}
+}
+
+func TestRequestResolveCell(t *testing.T) {
+	seed, cell := uint64(42), 3
+	s, got := Request{Seed: &seed, Cell: &cell, Size: DefaultSize}.Resolve()
+	if got != CellSeed(42, 3) || !reflect.DeepEqual(s, Resolve(Spec{}, CellSeed(42, 3))) {
+		t.Errorf("cell request resolved with seed %d, want %d", got, CellSeed(42, 3))
+	}
+}

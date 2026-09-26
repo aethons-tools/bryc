@@ -79,6 +79,10 @@ Output settings are not facets and are never randomized:
 
 - `size`: output edge length in pixels, square. Default `512`, allowed
   `64`–`2048`.
+- `cell`: optional non-negative integer. With it, the robot's seed is derived
+  from `seed` and the cell number (`robot.CellSeed`, a splitmix64 mix), so a
+  single grid seed deterministically gives a whole grid of robots. The web
+  page's grid mode uses cells 0–8.
 
 ## Randomization and seeds
 

@@ -53,12 +53,15 @@ func facetRand(seed uint64, name string) *rand.Rand {
 }
 
 // Resolve applies the palette to unset colors, picks a fresh seed if none was
-// given, and fills every remaining unset facet. It returns the resolved Spec
-// and the seed used.
+// given, derives the cell's seed for a grid cell, and fills every remaining
+// unset facet. It returns the resolved Spec and the robot's own seed.
 func (r Request) Resolve() (Spec, uint64) {
 	seed := rand.Uint64()
 	if r.Seed != nil {
 		seed = *r.Seed
+	}
+	if r.Cell != nil {
+		seed = CellSeed(seed, *r.Cell)
 	}
 	s := r.Spec
 	if p, ok := palettes[r.Palette]; ok {
@@ -74,4 +77,14 @@ func (r Request) Resolve() (Spec, uint64) {
 		}
 	}
 	return Resolve(s, seed), seed
+}
+
+// CellSeed is the seed of cell number cell in the grid with seed grid: a
+// splitmix64 mix of the two, so every cell gets an unrelated-looking seed and
+// the same grid seed always gives the same robots.
+func CellSeed(grid uint64, cell int) uint64 {
+	z := grid ^ (uint64(cell)+1)*0x9e3779b97f4a7c15
+	z = (z ^ z>>30) * 0xbf58476d1ce4e5b9
+	z = (z ^ z>>27) * 0x94d049bb133111eb
+	return z ^ z>>31
 }

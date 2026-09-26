@@ -30,7 +30,12 @@ go run ./cmd/bryc-web          # http://localhost:8080
 
 Switch to **Grid** to see nine robots at once, all following whatever you've
 pinned; click one to open it in the single view (with its seed) to tweak and
-download it. `?mode=grid` links open straight into the grid.
+download it. In grid mode the seed is the grid's seed: each robot's own seed is
+derived from it, so a grid seed always gives the same nine robots, and
+`?mode=grid&seed=…` links reproduce a grid exactly.
+
+`GET /robot.png?seed=G&cell=N` renders cell N of the grid with seed G;
+`X-Bryc-Seed` is that robot's own seed.
 
 `GET /robot.png?head=dome&seed=42&size=512` returns a PNG; the seed and the
 fully resolved options come back in `X-Bryc-Seed` and `X-Bryc-Spec`.

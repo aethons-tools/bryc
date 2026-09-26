@@ -179,7 +179,10 @@ type Request struct {
 	Spec    Spec
 	Palette string  // "" for none
 	Seed    *uint64 // nil means pick a fresh seed
-	Size    int
+	// Cell, if set, picks one robot of a grid: its seed is derived from Seed
+	// and the cell number (see CellSeed), so a grid seed gives a fixed set.
+	Cell *int
+	Size int
 }
 
 // ValidationError lists every problem found in a request.
@@ -228,6 +231,13 @@ func ParseQuery(q url.Values) (Request, error) {
 				continue
 			}
 			req.Size = n
+		case "cell":
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				problems = append(problems, fmt.Sprintf("cell: %q is not an integer", v))
+				continue
+			}
+			req.Cell = &n
 		default:
 			f, ok := byName[key]
 			switch {
@@ -296,6 +306,9 @@ func (r Request) problems() []string {
 	if _, ok := palettes[r.Palette]; r.Palette != "" && !ok {
 		problems = append(problems, fmt.Sprintf("palette: unknown value %q (allowed: %s)",
 			r.Palette, strings.Join(PaletteNames(), ", ")))
+	}
+	if r.Cell != nil && *r.Cell < 0 {
+		problems = append(problems, fmt.Sprintf("cell: %d is negative", *r.Cell))
 	}
 	if r.Size < MinSize || r.Size > MaxSize {
 		problems = append(problems, fmt.Sprintf("size: %d is outside %d-%d", r.Size, MinSize, MaxSize))

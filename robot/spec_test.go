@@ -173,3 +173,19 @@ func TestParseQueryShoulders(t *testing.T) {
 		}
 	}
 }
+
+func TestParseQueryCell(t *testing.T) {
+	req := mustParse(t, "seed=7&cell=4")
+	if req.Cell == nil || *req.Cell != 4 {
+		t.Errorf("Cell = %v, want 4", req.Cell)
+	}
+	for raw, want := range map[string]string{
+		"cell=-1":  "cell: -1 is negative",
+		"cell=abc": `cell: "abc" is not an integer`,
+	} {
+		q, _ := url.ParseQuery(raw)
+		if _, err := ParseQuery(q); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: err = %v, want %q", raw, err, want)
+		}
+	}
+}

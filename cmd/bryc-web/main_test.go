@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -74,9 +76,24 @@ func TestIndex(t *testing.T) {
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "Bored Robots Yacht Club") {
 		t.Errorf("code=%d body=%s", rec.Code, rec.Body)
 	}
-	for _, want := range []string{"/options.json", "/robot.png?", "X-Bryc-Seed", "X-Bryc-Spec", `id="size"`, "f.kind === 'range'", "dependsOn", "Randomize", `id="grid"`, `id="mode-grid"`, `id="mode-single"`} {
+	for _, want := range []string{"/options.json", "/robot.png?", "X-Bryc-Seed", "X-Bryc-Spec", `id="size"`, "f.kind === 'range'", "dependsOn", "Randomize", `id="grid"`, `id="mode-grid"`, `id="mode-single"`, "'cell'", "randomSeed"} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Errorf("index.html missing %q", want)
 		}
+	}
+}
+
+func TestRobotCell(t *testing.T) {
+	a := get(t, "/robot.png?seed=5&cell=3&size=64")
+	b := get(t, "/robot.png?seed=5&cell=3&size=64")
+	if a.Code != 200 {
+		t.Fatalf("code=%d body=%s", a.Code, a.Body)
+	}
+	want := strconv.FormatUint(robot.CellSeed(5, 3), 10)
+	if got := a.Header().Get("X-Bryc-Seed"); got != want {
+		t.Errorf("X-Bryc-Seed = %s, want the cell's own seed %s", got, want)
+	}
+	if !bytes.Equal(a.Body.Bytes(), b.Body.Bytes()) {
+		t.Error("same grid seed and cell gave different robots")
 	}
 }

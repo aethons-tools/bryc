@@ -87,7 +87,6 @@ const img = document.getElementById('robot');
 const errorBox = document.getElementById('error');
 const download = document.getElementById('download');
 const grid = document.getElementById('grid');
-const seedRow = document.getElementById('seed-row');
 const modeButtons = { single: document.getElementById('mode-single'), grid: document.getElementById('mode-grid') };
 const GRID_COUNT = 9;
 const GRID_SIZE = 256; // thumbnails; pick one to see it at full size
@@ -230,8 +229,13 @@ function currentQuery() {
   const size = sizeInput.value.trim();
   if (size && size !== String(defaultSize)) q.set('size', size);
   const seed = seedInput.value.trim();
-  if (seed && mode === 'single') q.set('seed', seed);
+  if (seed) q.set('seed', seed);
   return q;
+}
+
+// randomSeed is a fresh 64-bit seed, as the decimal string the server takes.
+function randomSeed() {
+  return crypto.getRandomValues(new BigUint64Array(1))[0].toString();
 }
 
 function showError(text) {
@@ -244,7 +248,6 @@ function showError(text) {
 function setMode(m) {
   mode = m;
   for (const [name, button] of Object.entries(modeButtons)) button.setAttribute('aria-pressed', String(name === m));
-  seedRow.hidden = m === 'grid';
   download.hidden = m === 'grid';
   img.hidden = m === 'grid';
   grid.hidden = m !== 'grid';
@@ -254,14 +257,21 @@ function update() {
   return mode === 'grid' ? updateGrid() : updateSingle();
 }
 
-// updateGrid renders nine robots with the current pins, each on its own
-// random seed, at thumbnail size.
+// updateGrid renders nine robots with the current pins at thumbnail size. The
+// seed field holds the grid's seed (one is picked if it's empty); the server
+// derives each cell's own seed from it, so a grid seed always gives the same
+// nine robots.
 async function updateGrid() {
+  if (!seedInput.value.trim()) seedInput.value = randomSeed();
   const q = currentQuery();
   const pins = new URLSearchParams(q);
   const mine = ++ticket;
   q.set('size', GRID_SIZE);
-  const responses = await Promise.all(Array.from({ length: GRID_COUNT }, () => fetch('/robot.png?' + q)));
+  const responses = await Promise.all(Array.from({ length: GRID_COUNT }, (_, cell) => {
+    const cq = new URLSearchParams(q);
+    cq.set('cell', cell);
+    return fetch('/robot.png?' + cq);
+  }));
   if (mine !== ticket) return;
   const bad = responses.find(r => !r.ok);
   if (bad) return showError(await bad.text());
@@ -279,7 +289,7 @@ async function updateGrid() {
     thumb.alt = `Robot with seed ${seed}`;
     cell.append(thumb);
     cell.addEventListener('click', () => {
-      seedInput.value = seed;
+      seedInput.value = seed; // the cell's own seed: the same robot, full size
       setMode('single');
       update();
     });

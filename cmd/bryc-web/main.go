@@ -33,29 +33,55 @@ func newHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /", http.FileServerFS(page))
 	mux.HandleFunc("GET /robot.png", handleRobot)
+	mux.HandleFunc("GET /robot.glb", handleModel)
 	mux.HandleFunc("GET /options.json", handleOptions)
 	return mux
 }
 
-func handleRobot(w http.ResponseWriter, r *http.Request) {
+// resolveRequest parses and resolves the query shared by /robot.png and
+// /robot.glb and sets the seed, spec and cache headers. On invalid input it
+// writes a 400 and reports false.
+func resolveRequest(w http.ResponseWriter, r *http.Request) (robot.Spec, robot.Request, bool) {
 	req, err := robot.ParseQuery(r.URL.Query())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return robot.Spec{}, req, false
 	}
 	spec, seed := req.Resolve()
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, robot.Render(spec, req.Size)); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	h := w.Header()
-	h.Set("Content-Type", "image/png")
 	h.Set("X-Bryc-Seed", strconv.FormatUint(seed, 10))
 	h.Set("X-Bryc-Spec", spec.Query().Encode())
 	if req.Seed == nil {
 		h.Set("Cache-Control", "no-store")
 	}
+	return spec, req, true
+}
+
+func handleRobot(w http.ResponseWriter, r *http.Request) {
+	spec, req, ok := resolveRequest(w, r)
+	if !ok {
+		return
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, robot.Render(spec, req.Size)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Write(buf.Bytes())
+}
+
+func handleModel(w http.ResponseWriter, r *http.Request) {
+	spec, _, ok := resolveRequest(w, r)
+	if !ok {
+		return
+	}
+	var buf bytes.Buffer
+	if err := robot.WriteGLB(&buf, spec); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "model/gltf-binary")
 	w.Write(buf.Bytes())
 }
 

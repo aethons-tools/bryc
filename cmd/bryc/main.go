@@ -1,4 +1,4 @@
-// Command bryc renders a Bored Robots Yacht Club robot to a PNG file.
+// Command bryc renders a Bored Robots Yacht Club robot to a PNG or .glb file.
 // Every option left unset is random; the seed used is printed so a robot
 // can be reproduced.
 package main
@@ -23,8 +23,9 @@ func main() {
 }
 
 type options struct {
-	req robot.Request
-	out string // "" means bryc-<seed>.png
+	req    robot.Request
+	out    string // "" means bryc-<seed>.<format>
+	format string // "png" or "glb"
 }
 
 // flagError marks errors the FlagSet has already printed along with usage.
@@ -53,7 +54,8 @@ func parseArgs(args []string, stderr io.Writer) (options, error) {
 	fs.String("palette", "", strings.Join(robot.PaletteNames(), " | "))
 	fs.String("seed", "", "random seed (random if unset)")
 	fs.String("size", strconv.Itoa(robot.DefaultSize), "output width and height in pixels")
-	out := fs.String("o", "", "output file (default bryc-<seed>.png)")
+	format := fs.String("format", "png", "png | glb")
+	out := fs.String("o", "", "output file (default bryc-<seed>.<format>)")
 
 	if err := fs.Parse(args); err != nil {
 		return options{}, flagError{err}
@@ -61,9 +63,12 @@ func parseArgs(args []string, stderr io.Writer) (options, error) {
 	if fs.NArg() > 0 {
 		return options{}, fmt.Errorf("unexpected arguments: %s", strings.Join(fs.Args(), " "))
 	}
+	if *format != "png" && *format != "glb" {
+		return options{}, fmt.Errorf("unknown format %q (want png or glb)", *format)
+	}
 	q := url.Values{}
 	fs.Visit(func(f *flag.Flag) {
-		if f.Name != "o" {
+		if f.Name != "o" && f.Name != "format" {
 			q.Set(f.Name, f.Value.String())
 		}
 	})
@@ -71,7 +76,7 @@ func parseArgs(args []string, stderr io.Writer) (options, error) {
 	if err != nil {
 		return options{}, err
 	}
-	return options{req: req, out: *out}, nil
+	return options{req: req, out: *out, format: *format}, nil
 }
 
 func run(args []string, stderr io.Writer) int {
@@ -90,10 +95,16 @@ func run(args []string, stderr io.Writer) int {
 	spec, seed := opts.req.Resolve()
 	out := opts.out
 	if out == "" {
-		out = fmt.Sprintf("bryc-%d.png", seed)
+		out = fmt.Sprintf("bryc-%d.%s", seed, opts.format)
 	}
-	if err := writePNG(out, robot.Render(spec, opts.req.Size)); err != nil {
-		fmt.Fprintln(stderr, err)
+	var werr error
+	if opts.format == "glb" {
+		werr = writeGLB(out, spec)
+	} else {
+		werr = writePNG(out, robot.Render(spec, opts.req.Size))
+	}
+	if werr != nil {
+		fmt.Fprintln(stderr, werr)
 		return 1
 	}
 	fmt.Fprintf(stderr, "seed: %d\nspec: %s\nwrote %s\n", seed, spec.Query().Encode(), out)
@@ -106,6 +117,18 @@ func writePNG(path string, img image.Image) error {
 		return err
 	}
 	if err := png.Encode(f, img); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+func writeGLB(path string, spec robot.Spec) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	if err := robot.WriteGLB(f, spec); err != nil {
 		f.Close()
 		return err
 	}

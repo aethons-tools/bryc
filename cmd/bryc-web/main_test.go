@@ -97,3 +97,23 @@ func TestRobotCell(t *testing.T) {
 		t.Error("same grid seed and cell gave different robots")
 	}
 }
+
+func TestRobotGLB(t *testing.T) {
+	a := get(t, "/robot.glb?seed=4&cell=2")
+	b := get(t, "/robot.glb?seed=4&cell=2")
+	if a.Code != 200 || a.Header().Get("Content-Type") != "model/gltf-binary" {
+		t.Fatalf("code=%d type=%q", a.Code, a.Header().Get("Content-Type"))
+	}
+	if !bytes.HasPrefix(a.Body.Bytes(), []byte("glTF")) || !bytes.Equal(a.Body.Bytes(), b.Body.Bytes()) {
+		t.Error("not a deterministic .glb")
+	}
+	if a.Header().Get("X-Bryc-Seed") != strconv.FormatUint(robot.CellSeed(4, 2), 10) || a.Header().Get("X-Bryc-Spec") == "" {
+		t.Errorf("headers %v", a.Header())
+	}
+	if bad := get(t, "/robot.glb?head=blob"); bad.Code != 400 {
+		t.Errorf("invalid: code %d", bad.Code)
+	}
+	if u := get(t, "/robot.glb"); u.Header().Get("Cache-Control") != "no-store" {
+		t.Error("unseeded model should not be cached")
+	}
+}

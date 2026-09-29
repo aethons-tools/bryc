@@ -92,3 +92,35 @@ func TestRunInvalidExitsNonZero(t *testing.T) {
 		t.Errorf("stderr = %s", stderr.String())
 	}
 }
+
+func TestRunGLB(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "bot.glb")
+	var stderr bytes.Buffer
+	if code := run([]string{"--seed=5", "--format=glb", "-o", out}, &stderr); code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	b, err := os.ReadFile(out)
+	if err != nil || !bytes.HasPrefix(b, []byte("glTF")) {
+		t.Fatalf("not a .glb: %v", err)
+	}
+}
+
+func TestRunDefaultGLBName(t *testing.T) {
+	dir := t.TempDir()
+	wd, _ := os.Getwd()
+	os.Chdir(dir)
+	defer os.Chdir(wd)
+	if code := run([]string{"--seed=6", "--format=glb"}, io.Discard); code != 0 {
+		t.Fatal("exit", code)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "bryc-6.glb")); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRunUnknownFormat(t *testing.T) {
+	var stderr bytes.Buffer
+	if code := run([]string{"--format=obj"}, &stderr); code != 1 || !strings.Contains(stderr.String(), "format") {
+		t.Errorf("exit %d stderr %q", code, stderr.String())
+	}
+}

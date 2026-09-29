@@ -76,7 +76,7 @@ func TestIndex(t *testing.T) {
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "Bored Robots Yacht Club") {
 		t.Errorf("code=%d body=%s", rec.Code, rec.Body)
 	}
-	for _, want := range []string{"/options.json", "/robot.png?", "X-Bryc-Seed", "X-Bryc-Spec", `id="size"`, "f.kind === 'range'", "dependsOn", "Randomize", `id="grid"`, `id="mode-grid"`, `id="mode-single"`, "'cell'", "randomSeed"} {
+	for _, want := range []string{"/options.json", "/robot.png?", "X-Bryc-Seed", "X-Bryc-Spec", `id="size"`, "f.kind === 'range'", "dependsOn", "Randomize", `id="grid"`, `id="mode-grid"`, `id="mode-single"`, "'cell'", "randomSeed", `id="view-3d"`, `id="viewer"`, "/robot.glb?", "importmap", "GLTFLoader", "OrbitControls", "Download .glb"} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Errorf("index.html missing %q", want)
 		}

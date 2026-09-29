@@ -35,6 +35,11 @@ download it. In grid mode the seed is the grid's seed: each robot's own seed is
 derived from it, so a grid seed always gives the same nine robots, and
 `?mode=grid&seed=…` links reproduce a grid exactly.
 
+In single mode, the **2D | 3D** toggle swaps the portrait for an interactive 3D
+model (three.js, loaded from jsDelivr): it auto-rotates until you drag, scroll
+zooms, and **Download .glb** saves the model. `?view=3d` opens the page in 3D;
+grid mode is always 2D.
+
 `GET /robot.png?seed=G&cell=N` renders cell N of the grid with seed G;
 `X-Bryc-Seed` is that robot's own seed.
 

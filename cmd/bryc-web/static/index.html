@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bored Robots Yacht Club</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+} }
+</script>
 <style>
   :root { --bg:#f4f1ea; --panel:#fff; --ink:#26262e; --muted:#6b6b76; --line:#e2ddd2; --accent:#3a6ea5; --err:#b3261e; }
   @media (prefers-color-scheme: dark) {
@@ -44,6 +50,9 @@
   .modes { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
   .modes button { border: none; border-radius: 0; padding: 6px 14px; }
   .modes button[aria-pressed=true] { background: var(--accent); color: #fff; }
+  .viewer { width: 100%; max-width: 512px; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #d0d0d4; }
+  .viewer canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .modes button:disabled { opacity: .45; cursor: not-allowed; }
   .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 512px; }
   .grid button { padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; }
   .grid button:hover, .grid button:focus-visible { border-color: var(--accent); outline: none; }
@@ -62,13 +71,20 @@
       <button id="mode-single" type="button" aria-pressed="true">Single</button>
       <button id="mode-grid" type="button" aria-pressed="false">Grid</button>
     </div>
+    <div class="modes" id="view-toggle" role="group" aria-label="Dimensions">
+      <button id="view-2d" type="button" aria-pressed="true">2D</button>
+      <button id="view-3d" type="button" aria-pressed="false">3D</button>
+    </div>
     <img id="robot" alt="Generated robot portrait">
+    <!-- 3D view (three.js): drag to rotate, scroll to zoom -->
+    <div id="viewer" class="viewer" hidden></div>
     <!-- grid mode: nine robots that all follow the pinned options; click one to pick it -->
     <div id="grid" class="grid" hidden></div>
     <div id="error" class="error" hidden></div>
     <div class="actions">
       <button id="randomize" class="primary" type="button">Randomize</button>
       <a id="download" class="button" download>Download PNG</a>
+      <a id="download-glb" class="button" download hidden>Download .glb</a>
     </div>
   </section>
   <form id="controls" autocomplete="off">
@@ -79,6 +95,10 @@
   </form>
 </main>
 <script>
+// The 3D module below resolves this once three.js has loaded, or rejects if
+// WebGL or the CDN is unavailable (the page then disables the 3D button).
+window.bryc3dReady = new Promise((resolve, reject) => { window.bryc3dSettle = { resolve, reject }; });
+window.bryc3dReady.catch(() => {});
 const form = document.getElementById('controls');
 const seedInput = document.getElementById('seed');
 const paletteSelect = document.getElementById('palette');
@@ -87,10 +107,15 @@ const img = document.getElementById('robot');
 const errorBox = document.getElementById('error');
 const download = document.getElementById('download');
 const grid = document.getElementById('grid');
+const downloadGLB = document.getElementById('download-glb');
+const viewer = document.getElementById('viewer');
+const viewToggle = document.getElementById('view-toggle');
+const viewButtons = { '2d': document.getElementById('view-2d'), '3d': document.getElementById('view-3d') };
 const modeButtons = { single: document.getElementById('mode-single'), grid: document.getElementById('mode-grid') };
 const GRID_COUNT = 9;
 const GRID_SIZE = 256; // thumbnails; pick one to see it at full size
 let mode = 'single';
+let view = '2d'; // page-only state (URL view=3d); never sent to the server
 let gridURLs = [];
 // {name, read() -> string ('' = random), write(string), show(resolved value)}
 const controls = [];
@@ -242,15 +267,33 @@ function showError(text) {
   errorBox.textContent = text;
   errorBox.hidden = false;
   img.hidden = true;
+  viewer.hidden = true;
+  downloadGLB.hidden = true;
   grid.hidden = true;
+}
+
+function applyView() {
+  const three = mode === 'single' && view === '3d';
+  for (const [name, button] of Object.entries(viewButtons)) button.setAttribute('aria-pressed', String(name === view));
+  viewToggle.hidden = mode === 'grid';
+  download.hidden = mode === 'grid' || three;
+  img.hidden = mode === 'grid' || three;
+  viewer.hidden = !three;
+  downloadGLB.hidden = !three;
+  if (!three && window.bryc3d) window.bryc3d.hide();
 }
 
 function setMode(m) {
   mode = m;
+  if (m === 'grid') view = '2d'; // grid is 2D only
   for (const [name, button] of Object.entries(modeButtons)) button.setAttribute('aria-pressed', String(name === m));
-  download.hidden = m === 'grid';
-  img.hidden = m === 'grid';
   grid.hidden = m !== 'grid';
+  applyView();
+}
+
+function setView(v) {
+  view = v;
+  applyView();
 }
 
 function update() {
@@ -316,14 +359,26 @@ async function updateSingle() {
   const resolved = new URLSearchParams(res.headers.get('X-Bryc-Spec') || '');
   for (const c of controls) c.show(resolved.get(c.name) || '');
   updateDependents(resolved);
+  const glbURL = '/robot.glb?' + q;
+  if (view === '3d') q.set('view', '3d');
   history.replaceState(null, '', '?' + q);
   if (blobURL) URL.revokeObjectURL(blobURL);
   blobURL = URL.createObjectURL(blob);
   img.src = blobURL;
-  img.hidden = false;
-  errorBox.hidden = true;
   download.href = blobURL;
   download.download = `bryc-${seed}.png`;
+  errorBox.hidden = true;
+  applyView();
+  if (view !== '3d') return;
+  downloadGLB.href = glbURL;
+  downloadGLB.download = `bryc-${seed}.glb`;
+  const bg = resolved.get('background') || '';
+  try {
+    await window.bryc3dReady;
+    await window.bryc3d.show(glbURL, /^#[0-9a-f]{6}$/.test(bg) ? bg : null);
+  } catch (e) {
+    if (mine === ticket) showError(String(e && e.message || e));
+  }
 }
 
 document.getElementById('randomize').addEventListener('click', () => {
@@ -332,6 +387,13 @@ document.getElementById('randomize').addEventListener('click', () => {
 });
 modeButtons.single.addEventListener('click', () => { if (mode !== 'single') { setMode('single'); update(); } });
 modeButtons.grid.addEventListener('click', () => { if (mode !== 'grid') { setMode('grid'); update(); } });
+viewButtons['2d'].addEventListener('click', () => { if (view !== '2d') { setView('2d'); update(); } });
+viewButtons['3d'].addEventListener('click', () => { if (view !== '3d') { setView('3d'); update(); } });
+window.bryc3dReady.catch((e) => {
+  viewButtons['3d'].disabled = true;
+  viewButtons['3d'].title = `3D view unavailable: ${e && e.message || 'WebGL or three.js could not load'}`;
+  if (view === '3d') { setView('2d'); update(); }
+});
 form.addEventListener('change', update);
 form.addEventListener('submit', (e) => { e.preventDefault(); update(); });
 
@@ -347,9 +409,98 @@ form.addEventListener('submit', (e) => { e.preventDefault(); update(); });
   paletteSelect.value = params.get('palette') || '';
   sizeInput.value = params.get('size') || defaultSize;
   seedInput.value = params.get('seed') || '';
+  view = params.get('view') === '3d' ? '3d' : '2d';
   setMode(params.get('mode') === 'grid' ? 'grid' : 'single');
   update();
 })();
+</script>
+<script type="module">
+try {
+  if (!('WebGLRenderingContext' in window)) throw new Error('WebGL is not available in this browser');
+  const THREE = await import('three');
+  const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+  const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+  const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
+  const host = document.getElementById('viewer');
+  let renderer, scene, camera, controls, loader, observer;
+  let model = null;
+  let framed = false;
+
+  function init() {
+    if (renderer) return;
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    host.append(renderer.domElement);
+    scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    camera = new THREE.PerspectiveCamera(35, 1, 0.01, 100);
+    camera.position.set(0, 0, 3);
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.5;
+    controls.addEventListener('start', () => { controls.autoRotate = false; });
+    loader = new GLTFLoader();
+    observer = new ResizeObserver(resize);
+    observer.observe(host);
+  }
+
+  function resize() {
+    const w = host.clientWidth;
+    if (!w) return; // hidden
+    renderer.setSize(w, w, false); // square; CSS sizes the canvas
+    camera.aspect = 1;
+    camera.updateProjectionMatrix();
+  }
+
+  function disposeModel(obj) {
+    obj.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+      for (const m of mats) {
+        for (const v of Object.values(m)) if (v && v.isTexture) v.dispose();
+        m.dispose();
+      }
+    });
+  }
+
+  function frame(obj) {
+    const box = new THREE.Box3().setFromObject(obj);
+    const centre = box.getCenter(new THREE.Vector3());
+    const radius = box.getSize(new THREE.Vector3()).length() / 2;
+    const dist = (radius * 1.25) / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2));
+    controls.target.copy(centre);
+    camera.position.copy(centre).add(new THREE.Vector3(0, 0, dist));
+    camera.near = dist / 100;
+    camera.far = dist * 100;
+    camera.updateProjectionMatrix();
+    controls.update();
+  }
+
+  window.bryc3d = {
+    async show(url, background) {
+      init();
+      const gltf = await loader.loadAsync(url);
+      if (model) { scene.remove(model); disposeModel(model); }
+      model = gltf.scene;
+      scene.add(model);
+      scene.background = new THREE.Color(background || '#d0d0d4');
+      host.style.background = background || '#d0d0d4';
+      resize();
+      if (!framed) { frame(model); framed = true; }
+      renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+    },
+    hide() {
+      if (renderer) renderer.setAnimationLoop(null);
+    },
+  };
+  window.bryc3dSettle.resolve();
+} catch (e) {
+  window.bryc3dSettle.reject(e);
+}
 </script>
 </body>
 </html>

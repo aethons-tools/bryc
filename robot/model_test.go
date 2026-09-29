@@ -4,7 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/aethons-tools/bryc/robot/mesh"
 )
@@ -148,5 +153,93 @@ func TestModelFocusedEyeTilt(t *testing.T) {
 	}
 	if yAtX(r, false) >= yAtX(r, true) {
 		t.Errorf("right eye: inner (left) end not lower than outer end")
+	}
+}
+
+func TestModelEveryValueBuilds(t *testing.T) {
+	for _, facet := range Facets() {
+		values := facet.Values
+		switch facet.Kind {
+		case KindBool:
+			values = []string{"true", "false"}
+		case KindRange:
+			values = []string{strconv.Itoa(*facet.Min), "0", strconv.Itoa(*facet.Max)}
+		case KindColor:
+			continue
+		}
+		for _, v := range values {
+			req, err := ParseQuery(url.Values{facet.Name: {v}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, n := range Model(Resolve(req.Spec, 11)).Nodes {
+				if !n.Mesh.Closed() || n.Mesh.Volume() <= 0 {
+					t.Errorf("%s=%s: node %s closed %v volume %v", facet.Name, v, n.Name, n.Mesh.Closed(), n.Mesh.Volume())
+				}
+			}
+		}
+	}
+}
+
+func TestModelHardwareParts(t *testing.T) {
+	yes := true
+	s := Resolve(Spec{Eyes: "round", EyeCount: "2", Eyelashes: &yes, Rivets: &yes, Panels: &yes, Blush: &yes,
+		Ears: "dials", Antenna: "double"}, 5)
+	nodes := nodeNames(s)
+	for _, name := range []string{"rivet-0", "rivet-3", "seam-0", "seam-1", "blush-0", "blush-1", "lash-0", "lash-1",
+		"ear-0", "ear-1", "ear-cap-0", "ear-tick-1", "antenna-stem-0", "antenna-stem-1", "antenna-ball-1", "antenna-base-0"} {
+		if _, ok := nodes[name]; !ok {
+			t.Errorf("missing %q", name)
+		}
+	}
+	s2 := Resolve(Spec{Ears: "bolts", Antenna: "bolt"}, 5)
+	for _, name := range []string{"ear-0", "ear-dot-1", "antenna-bolt", "antenna-base-0"} {
+		if _, ok := nodeNames(s2)[name]; !ok {
+			t.Errorf("missing %q", name)
+		}
+	}
+}
+
+func TestModelBudget(t *testing.T) {
+	for seed := uint64(0); seed < 20; seed++ {
+		s := Resolve(Spec{}, seed)
+		start := time.Now()
+		var buf bytes.Buffer
+		if err := WriteGLB(&buf, s); err != nil {
+			t.Fatal(err)
+		}
+		if d := time.Since(start); d > 100*time.Millisecond {
+			t.Errorf("seed %d: built in %v, budget 100ms", seed, d)
+		}
+		if buf.Len() > 1<<20 {
+			t.Errorf("seed %d: %d bytes, budget 1 MB", seed, buf.Len())
+		}
+	}
+}
+
+func TestModelGolden(t *testing.T) {
+	for name, spec := range map[string]Spec{
+		"model-seed-1": Resolve(Spec{}, 1),
+		"model-seed-2": Resolve(Spec{}, 2),
+		"model-seed-3": Resolve(Spec{}, 3),
+	} {
+		var buf bytes.Buffer
+		if err := WriteGLB(&buf, spec); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join("testdata", name+".glb")
+		if *update {
+			if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		want, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("%v (generate with: go test ./robot -update -run TestModelGolden)", err)
+		}
+		if !bytes.Equal(buf.Bytes(), want) {
+			t.Errorf("%s changed; if intended run: go test ./robot -update -run TestModelGolden", name)
+		}
 	}
 }

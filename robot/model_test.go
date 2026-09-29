@@ -126,3 +126,27 @@ func TestModelEyesFollowLayout(t *testing.T) {
 		}
 	}
 }
+
+func TestModelFocusedEyeTilt(t *testing.T) {
+	no := false
+	s := Resolve(Spec{Eyes: "focused", EyeCount: "2", EyeStyle: "dead", Eyelashes: &no}, 5)
+	nodes := nodeNames(s)
+	// yAtX returns the Y of the vertex with the largest (or smallest) X.
+	yAtX := func(m mesh.Mesh, max bool) float64 {
+		best := m.Positions[0]
+		for _, p := range m.Positions {
+			if (max && p.X > best.X) || (!max && p.X < best.X) {
+				best = p
+			}
+		}
+		return best.Y
+	}
+	// Inner ends tilt down: the left eye's right end and the right eye's left end.
+	l, r := nodes["eye-0"], nodes["eye-1"]
+	if yAtX(l, true) >= yAtX(l, false) {
+		t.Errorf("left eye: inner (right) end not lower than outer end")
+	}
+	if yAtX(r, false) >= yAtX(r, true) {
+		t.Errorf("right eye: inner (left) end not lower than outer end")
+	}
+}

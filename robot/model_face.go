@@ -30,9 +30,14 @@ func addEyes(m *modelBuilder) {
 		m.add("visor-bar", mustExtrude(upPoly(bp), 10, 3).Translate(mesh.Vec3{Z: faceZ + 22}), m.mat.glow)
 		return
 	}
-	aspect := 1.0
-	if s.Eyes != "round" {
+	var aspect float64
+	switch s.Eyes {
+	case "round":
+		aspect = 1
+	case "oval", "focused":
 		aspect = ovalAspect
+	default:
+		panic("robot: unknown eye shape " + s.Eyes)
 	}
 	r := roundEyeR(s)
 	for i, p := range roundEyeCenters(s, b) {
@@ -50,8 +55,10 @@ func addEyes(m *modelBuilder) {
 			m.add(fmt.Sprintf("eye-core-%d", i), place(mesh.Ellipsoid(c, c*aspect, c), tilt, x, y, faceZ+0.35*r), m.mat.glow)
 		case "dead":
 			m.add(name, place(mesh.Ellipsoid(r, r*aspect, 0.5*r), tilt, x, y, faceZ), m.mat.screen)
-		default:
+		case "bright":
 			m.add(name, place(mesh.Ellipsoid(r, r*aspect, 0.5*r), tilt, x, y, faceZ), m.mat.glow)
+		default:
+			panic("robot: unknown eye style " + s.EyeStyle)
 		}
 	}
 }
@@ -85,5 +92,7 @@ func addMouth(m *modelBuilder) {
 		for i, p := range jawBolts(s, b) {
 			m.add(fmt.Sprintf("jaw-bolt-%d", i), mesh.Ellipsoid(jawBoltRadius, jawBoltRadius, 5).Translate(upAt(p[0], p[1], 165)), m.mat.metal)
 		}
+	default:
+		panic("robot: unknown mouth " + s.Mouth)
 	}
 }

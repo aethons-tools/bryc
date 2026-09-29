@@ -69,9 +69,27 @@ func Extrude(poly []Vec2, depth, bevel float64) (Mesh, error) {
 	for i := range p {
 		inset[i] = Vec2{p[i].X - miter[i].X*bevel, p[i].Y - miter[i].Y*bevel}
 	}
+	insetArea := Area(inset)
+	if insetArea <= 1e-9*math.Abs(Area(p)) {
+		return Mesh{}, errors.New("mesh: outline too thin for bevel")
+	}
 	tris, err := Triangulate(inset)
 	if err != nil {
 		return Mesh{}, err
+	}
+	used := make([]bool, n)
+	triArea := 0.0
+	for t := 0; t+2 < len(tris); t += 3 {
+		used[tris[t]], used[tris[t+1]], used[tris[t+2]] = true, true, true
+		triArea += math.Abs(Area([]Vec2{inset[tris[t]], inset[tris[t+1]], inset[tris[t+2]]}))
+	}
+	for _, u := range used {
+		if !u {
+			return Mesh{}, errors.New("mesh: inset outline has an unusable vertex")
+		}
+	}
+	if math.Abs(triArea-insetArea) > 1e-6*insetArea {
+		return Mesh{}, errors.New("mesh: outline too thin for bevel")
 	}
 	for _, side := range []float64{1, -1} {
 		base := uint32(len(mesh.Positions))

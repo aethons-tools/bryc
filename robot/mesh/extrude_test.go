@@ -93,3 +93,28 @@ func TestExtrudeErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestExtrudeThinFeatureErrors(t *testing.T) {
+	if _, err := Extrude([]Vec2{{0, 0}, {100, 0}, {100, 15}, {0, 15}}, 60, 10); err == nil {
+		t.Error("100x15 with bevel 10: want error")
+	}
+}
+
+func TestExtrudeAcuteAndConcaveStayClosed(t *testing.T) {
+	cases := map[string]struct {
+		poly         []Vec2
+		depth, bevel float64
+	}{
+		"shoulder": {[]Vec2{{0, 0}, {740, 0}, {740, 300}, {780, 450}, {580, 300}, {160, 300}, {-40, 450}, {0, 300}}, 360, 12},
+		"U":        {[]Vec2{{0, 0}, {300, 0}, {300, 200}, {258, 200}, {258, 60}, {42, 60}, {42, 200}, {0, 200}}, 330, 10},
+	}
+	for name, c := range cases {
+		m, err := Extrude(c.poly, c.depth, c.bevel)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !m.Closed() || m.Volume() <= 0 {
+			t.Errorf("%s: closed=%v volume=%v", name, m.Closed(), m.Volume())
+		}
+	}
+}

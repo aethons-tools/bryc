@@ -243,3 +243,35 @@ func TestModelGolden(t *testing.T) {
 		}
 	}
 }
+
+func TestModelHardwarePlacement(t *testing.T) {
+	yes := true
+	for _, head := range HeadValues {
+		for _, tall := range []bool{false, true} {
+			tall := tall
+			s := Resolve(Spec{Head: head, Tall: &tall, Ears: "dials", Panels: &yes}, 4)
+			b := headLayout(s)
+			nodes := nodeNames(s)
+			canvasX := func(v float64) float64 { return v*1000 + 500 }
+			y := earY(b)
+			edge := leftEdge(s.Head, b, y)
+			mirror := 2*b.CX() - edge
+			lo, hi := nodes["ear-0"].Bounds()
+			if in := canvasX(hi.X) - edge; in < 10 {
+				t.Errorf("%s tall=%v: left dial only %.1f inside the head", head, tall, in)
+			}
+			lo, hi = nodes["ear-1"].Bounds()
+			if in := mirror - canvasX(lo.X); in < 10 {
+				t.Errorf("%s tall=%v: right dial only %.1f inside the head", head, tall, in)
+			}
+			for i, seam := range panelSeams(s, b) {
+				lo, hi := nodes[fmt.Sprintf("seam-%d", i)].Bounds()
+				e := leftEdge(s.Head, b, seam.y)
+				if canvasX(lo.X) < e+12 || canvasX(hi.X) > 2*b.CX()-e-12 {
+					t.Errorf("%s tall=%v seam-%d: x %.1f..%.1f outside [%.1f, %.1f]", head, tall, i,
+						canvasX(lo.X), canvasX(hi.X), e+12, 2*b.CX()-e-12)
+				}
+			}
+		}
+	}
+}

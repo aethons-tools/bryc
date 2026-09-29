@@ -9,6 +9,16 @@ import (
 
 // addHardware adds the rivets, seams, blush, eyelashes, ears and antenna to
 // the model.
+const (
+	// seamInset keeps seam ends clear of the head's bevelled edge: the
+	// bevel plus the seam's radius.
+	seamInset = headBevel + 4
+	// dialSink is how far a dial's disc reaches into the head, so it stays
+	// attached on slanted or curved sides; dialDisc is the disc's length and
+	// capLen the cap's.
+	dialSink, dialDisc, capLen = 15.0, 40.0, 10.0
+)
+
 func addHardware(m *modelBuilder) {
 	addFaceDetails(m)
 	addEars(m)
@@ -29,8 +39,11 @@ func addFaceDetails(m *modelBuilder) {
 			x1 := 2*b.CX() - x0
 			sag := math.Abs(x1-x0) * bowRatio
 			path := make([]mesh.Vec3, 0, steps+1)
+			// The bow is sized to the full edge-to-edge width (as in 2D), but
+			// only the span inside the bevel is sampled.
+			t0 := seamInset / (x1 - x0)
 			for k := 0; k <= steps; k++ {
-				t := float64(k) / steps
+				t := t0 + (1-2*t0)*float64(k)/steps
 				y := seam.y
 				if headBows[s.Head] {
 					// The 2D bowTo quadratic: its control point is 2*sag off.
@@ -87,11 +100,11 @@ func addEars(m *modelBuilder) {
 			if i == 1 {
 				edge = 2*b.CX() - edge
 			}
-			disc := mesh.Cylinder(dialRadius, 40).RotateY(math.Pi / 2)
-			m.add(fmt.Sprintf("ear-%d", i), disc.Translate(upAt(edge+out*20, d.y, 0)), m.mat.accent)
-			cap := mesh.Cylinder(dialCapRadius, 10).RotateY(math.Pi / 2)
-			m.add(fmt.Sprintf("ear-cap-%d", i), cap.Translate(upAt(edge+out*45, d.y, 0)), m.mat.body)
-			tick := []mesh.Vec3{upAt(edge+out*50, d.y, 0), upAt(edge+out*50, d.y-dialTick, 0)}
+			disc := mesh.Cylinder(dialRadius, dialDisc).RotateY(math.Pi / 2)
+			m.add(fmt.Sprintf("ear-%d", i), disc.Translate(upAt(edge+out*(dialDisc/2-dialSink), d.y, 0)), m.mat.accent)
+			cap := mesh.Cylinder(dialCapRadius, capLen).RotateY(math.Pi / 2)
+			m.add(fmt.Sprintf("ear-cap-%d", i), cap.Translate(upAt(edge+out*(dialDisc-dialSink+capLen/2), d.y, 0)), m.mat.body)
+			tick := []mesh.Vec3{upAt(edge+out*(dialDisc-dialSink+capLen), d.y, 0), upAt(edge+out*(dialDisc-dialSink+capLen), d.y-dialTick, 0)}
 			m.add(fmt.Sprintf("ear-tick-%d", i), mesh.Tube(tick, func(float64) float64 { return 4 }), m.mat.ink)
 		}
 	default:

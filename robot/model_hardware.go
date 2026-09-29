@@ -55,9 +55,15 @@ func addFaceDetails(m *modelBuilder) {
 		}
 	}
 	if s.Blush != nil && *s.Blush {
+		// The 2D blush is drawn over the jaw, so with a jaw it sits on the
+		// jaw's front rather than buried inside it.
+		z := faceZ + 2
+		if s.Mouth == "jaw" {
+			z = jawFront + 2
+		}
 		for i, p := range blushCenters(s, b) {
 			poly := ellipseOutline(p[0], p[1], blushRX, blushRY)
-			m.add(fmt.Sprintf("blush-%d", i), mustExtrude(upPoly(poly), 2, 0.5).Translate(mesh.Vec3{Z: faceZ + 2}), m.mat.blush)
+			m.add(fmt.Sprintf("blush-%d", i), mustExtrude(upPoly(poly), 2, 0.5).Translate(mesh.Vec3{Z: z}), m.mat.blush)
 		}
 	}
 	if s.Eyes != "visor" && hasLashes(s) {

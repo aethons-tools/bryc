@@ -53,7 +53,7 @@ func parseArgs(args []string, stderr io.Writer) (options, error) {
 	}
 	fs.String("palette", "", strings.Join(robot.PaletteNames(), " | "))
 	fs.String("seed", "", "random seed (random if unset)")
-	fs.String("size", strconv.Itoa(robot.DefaultSize), "output width and height in pixels")
+	fs.String("size", strconv.Itoa(robot.DefaultSize), "output width and height in pixels (png only; ignored for glb)")
 	format := fs.String("format", "png", "png | glb")
 	out := fs.String("o", "", "output file (default bryc-<seed>.<format>)")
 

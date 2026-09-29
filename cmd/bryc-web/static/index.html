@@ -440,7 +440,6 @@ try {
   const host = document.getElementById('viewer');
   let ctx = null; // {renderer, scene, camera, controls, loader}, set only once init fully succeeded
   let model = null;
-  let framed = false;
   let gen = 0; // bumped by every show() and hide(); a load that is no longer current is dropped
 
   function init() {
@@ -498,8 +497,13 @@ try {
     const centre = box.getCenter(new THREE.Vector3());
     const radius = box.getSize(new THREE.Vector3()).length() / 2;
     const dist = (radius * 1.25) / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2));
+    // Keep the current orbit angle: move along the camera's present direction
+    // from the old target (initially +z) to the new fit distance.
+    const dir = camera.position.clone().sub(controls.target);
+    if (dir.lengthSq() < 1e-12) dir.set(0, 0, 1);
+    dir.normalize();
     controls.target.copy(centre);
-    camera.position.copy(centre).add(new THREE.Vector3(0, 0, dist));
+    camera.position.copy(centre).addScaledVector(dir, dist);
     camera.near = dist / 100;
     camera.far = dist * 100;
     camera.updateProjectionMatrix();
@@ -519,7 +523,7 @@ try {
       c.scene.background = new THREE.Color(background || '#d0d0d4');
       host.style.background = background || '#d0d0d4';
       resize();
-      if (!framed) { frame(model); framed = true; }
+      frame(model);
       c.renderer.setAnimationLoop(() => { c.controls.update(); c.renderer.render(c.scene, c.camera); });
     },
     hide() {

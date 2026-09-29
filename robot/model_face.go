@@ -6,6 +6,14 @@ import (
 	"github.com/aethons-tools/bryc/robot/mesh"
 )
 
+const (
+	// jawDepth is the jaw's extrusion depth, centred on z=0, so its front
+	// face sits at jawFront: jawProtrusion in front of the head's face.
+	jawDepth      = 330.0
+	jawFront      = jawDepth / 2
+	jawProtrusion = jawFront - faceZ
+)
+
 // addFace adds the eyes, mouth and jaw to the model.
 func addFace(m *modelBuilder) {
 	addEyes(m)
@@ -23,11 +31,17 @@ func addEyes(m *modelBuilder) {
 	s, b := m.s, m.b
 	if s.Eyes == "visor" {
 		cx, y := b.CX(), eyeY(s, b)
+		// The 2D jaw covers the visor, so in front of the jaw the visor
+		// moves forward by the jaw's protrusion.
+		zOff := 0.0
+		if s.Mouth == "jaw" {
+			zOff = jawProtrusion
+		}
 		poly := roundedRectOutline(cx-visorHalfWidth, y-visorHalfHeight, 2*visorHalfWidth, 2*visorHalfHeight, visorHalfHeight)
-		m.add("visor", mustExtrude(upPoly(poly), 40, 8).Translate(mesh.Vec3{Z: faceZ}), m.mat.screen)
+		m.add("visor", mustExtrude(upPoly(poly), 40, 8).Translate(mesh.Vec3{Z: faceZ + zOff}), m.mat.screen)
 		bar := visorHalfWidth - visorBarInset
 		bp := roundedRectOutline(cx-bar, y-visorBarHalfHeight, 2*bar, 2*visorBarHalfHeight, visorBarHalfHeight)
-		m.add("visor-bar", mustExtrude(upPoly(bp), 10, 3).Translate(mesh.Vec3{Z: faceZ + 22}), m.mat.glow)
+		m.add("visor-bar", mustExtrude(upPoly(bp), 10, 3).Translate(mesh.Vec3{Z: faceZ + 22 + zOff}), m.mat.glow)
 		return
 	}
 	var aspect float64
@@ -88,9 +102,9 @@ func addMouth(m *modelBuilder) {
 		}
 		m.add("mouth", mesh.Tube(path, func(float64) float64 { return 7 }), m.mat.ink)
 	case "jaw":
-		m.add("jaw", mustExtrude(upPoly(jawOutline(s, b)), 330, 8), m.mat.jaw)
+		m.add("jaw", mustExtrude(upPoly(jawOutline(s, b)), jawDepth, 8), m.mat.jaw)
 		for i, p := range jawBolts(s, b) {
-			m.add(fmt.Sprintf("jaw-bolt-%d", i), mesh.Ellipsoid(jawBoltRadius, jawBoltRadius, 5).Translate(upAt(p[0], p[1], 165)), m.mat.metal)
+			m.add(fmt.Sprintf("jaw-bolt-%d", i), mesh.Ellipsoid(jawBoltRadius, jawBoltRadius, 5).Translate(upAt(p[0], p[1], jawFront)), m.mat.metal)
 		}
 	default:
 		panic("robot: unknown mouth " + s.Mouth)

@@ -2,12 +2,16 @@ package robot
 
 import (
 	"bytes"
+	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -238,8 +242,185 @@ func TestModelGolden(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v (generate with: go test ./robot -update -run TestModelGolden)", err)
 		}
-		if !bytes.Equal(buf.Bytes(), want) {
-			t.Errorf("%s changed; if intended run: go test ./robot -update -run TestModelGolden", name)
+		if err := compareGLB(buf.Bytes(), want); err != nil {
+			t.Errorf("%s changed (%v); if intended run: go test ./robot -update -run TestModelGolden", name, err)
+		}
+	}
+}
+
+// glbTol is the absolute tolerance (metres) for float data: arm64 fuses
+// multiply-adds where amd64 does not, so float32 low bits differ by platform.
+const glbTol = 1e-6
+
+// splitGLB returns the JSON chunk decoded generically and the BIN chunk.
+func splitGLB(b []byte) (map[string]any, []byte, error) {
+	le := binary.LittleEndian
+	if len(b) < 28 || le.Uint32(b[0:]) != 0x46546C67 || int(le.Uint32(b[8:])) != len(b) {
+		return nil, nil, fmt.Errorf("bad GLB header")
+	}
+	jl := int(le.Uint32(b[12:]))
+	if le.Uint32(b[16:]) != 0x4E4F534A || 20+jl+8 > len(b) {
+		return nil, nil, fmt.Errorf("bad JSON chunk")
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(b[20:20+jl], &doc); err != nil {
+		return nil, nil, err
+	}
+	rest := b[20+jl:]
+	if le.Uint32(rest[4:]) != 0x004E4942 || int(le.Uint32(rest))+8 != len(rest) {
+		return nil, nil, fmt.Errorf("bad BIN chunk")
+	}
+	return doc, rest[8:], nil
+}
+
+// jsonNear is deep equality where numbers may differ by 1e-9 (material colors
+// come from float64 pow/multiply chains that differ in the last digit across
+// architectures); everything else must match exactly.
+func jsonNear(a, b any) bool {
+	switch x := a.(type) {
+	case float64:
+		y, ok := b.(float64)
+		return ok && math.Abs(x-y) <= 1e-9
+	case []any:
+		y, ok := b.([]any)
+		if !ok || len(x) != len(y) {
+			return false
+		}
+		for i := range x {
+			if !jsonNear(x[i], y[i]) {
+				return false
+			}
+		}
+		return true
+	case map[string]any:
+		y, ok := b.(map[string]any)
+		if !ok || len(x) != len(y) {
+			return false
+		}
+		for k, v := range x {
+			w, ok := y[k]
+			if !ok || !jsonNear(v, w) {
+				return false
+			}
+		}
+		return true
+	}
+	return reflect.DeepEqual(a, b)
+}
+
+// compareGLB requires got and want to match: identical JSON (numbers within 1e-9) except accessor
+// min/max, identical index data, and float data within glbTol.
+func compareGLB(got, want []byte) error {
+	gd, gb, err := splitGLB(got)
+	if err != nil {
+		return err
+	}
+	wd, wb, err := splitGLB(want)
+	if err != nil {
+		return err
+	}
+	if len(gb) != len(wb) {
+		return fmt.Errorf("BIN length %d, want %d", len(gb), len(wb))
+	}
+	ga, _ := gd["accessors"].([]any)
+	wa, _ := wd["accessors"].([]any)
+	if len(ga) != len(wa) {
+		return fmt.Errorf("%d accessors, want %d", len(ga), len(wa))
+	}
+	type acc struct{ min, max []any }
+	strip := func(as []any) []acc {
+		out := make([]acc, len(as))
+		for i, a := range as {
+			m := a.(map[string]any)
+			out[i].min, _ = m["min"].([]any)
+			out[i].max, _ = m["max"].([]any)
+			delete(m, "min")
+			delete(m, "max")
+		}
+		return out
+	}
+	gm, wm := strip(ga), strip(wa)
+	if !jsonNear(gd, wd) {
+		return fmt.Errorf("JSON differs")
+	}
+	near := func(a, b []any) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for i := range a {
+			x, _ := a[i].(float64)
+			y, _ := b[i].(float64)
+			if math.Abs(x-y) > glbTol {
+				return false
+			}
+		}
+		return true
+	}
+	views := wd["bufferViews"].([]any)
+	le := binary.LittleEndian
+	for i, a := range wa {
+		m := a.(map[string]any)
+		if !near(gm[i].min, wm[i].min) || !near(gm[i].max, wm[i].max) {
+			return fmt.Errorf("accessor %d min/max differ", i)
+		}
+		v := views[int(m["bufferView"].(float64))].(map[string]any)
+		off, n := int(v["byteOffset"].(float64)), int(v["byteLength"].(float64))
+		g, w := gb[off:off+n], wb[off:off+n]
+		if m["componentType"].(float64) != 5126 {
+			if !bytes.Equal(g, w) {
+				return fmt.Errorf("accessor %d index data differs", i)
+			}
+			continue
+		}
+		for k := 0; k+4 <= n; k += 4 {
+			x := math.Float32frombits(le.Uint32(g[k:]))
+			y := math.Float32frombits(le.Uint32(w[k:]))
+			if math.Abs(float64(x)-float64(y)) > glbTol {
+				return fmt.Errorf("accessor %d float %d: %v, want %v", i, k/4, x, y)
+			}
+		}
+	}
+	return nil
+}
+
+func TestModelJawFront(t *testing.T) {
+	yes := true
+	for _, head := range HeadValues {
+		for _, tall := range []bool{false, true} {
+			for _, expr := range ExpressionValues {
+				for face := FaceMin; face <= FaceMax; face++ {
+					tall, face := tall, face
+					s := Resolve(Spec{Head: head, Tall: &tall, Expression: expr, Face: &face, Mouth: "jaw", Blush: &yes}, 6)
+					nodes := nodeNames(s)
+					_, jaw := nodes["jaw"].Bounds()
+					for name, m := range nodes {
+						if !strings.HasPrefix(name, "blush-") {
+							continue
+						}
+						if _, hi := m.Bounds(); hi.Z*1000 <= jaw.Z*1000 {
+							t.Errorf("%s tall=%v %s face=%d: %s front %v not in front of jaw %v", head, tall, expr, face, name, hi.Z*1000, jaw.Z*1000)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestModelVisorClearsJaw(t *testing.T) {
+	for _, head := range HeadValues {
+		for _, tall := range []bool{false, true} {
+			for face := FaceMin; face <= FaceMax; face++ {
+				tall, face := tall, face
+				s := Resolve(Spec{Head: head, Tall: &tall, Face: &face, Eyes: "visor", Mouth: "jaw"}, 6)
+				nodes := nodeNames(s)
+				_, jaw := nodes["jaw"].Bounds()
+				for _, name := range []string{"visor", "visor-bar"} {
+					if _, hi := nodes[name].Bounds(); hi.Z*1000 <= jaw.Z*1000 {
+						t.Errorf("%s tall=%v face=%d: %s front %v not in front of jaw %v", head, tall, face, name, hi.Z*1000, jaw.Z*1000)
+					}
+				}
+			}
 		}
 	}
 }

@@ -72,8 +72,8 @@ func drawRivets(c *canvas, s Spec, b Layout) {
 
 // drawBlush adds translucent accent-colored cheeks.
 func drawBlush(c *canvas, s Spec, b Layout) {
-	for _, x := range []float64{b.CX() - 170, b.CX() + 170} {
-		c.dc.DrawEllipse(x, blushY(s, b), 34, 20)
+	for _, p := range blushCenters(s, b) {
+		c.dc.DrawEllipse(p[0], p[1], blushRX, blushRY)
 		c.dc.SetColor(withAlpha(parseHex(s.Accent), 150))
 		c.dc.Fill()
 	}

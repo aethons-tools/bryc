@@ -1,43 +1,36 @@
 package robot
 
-// antennaBase draws the little mount where an antenna meets the head.
-func antennaBase(c *canvas, s Spec, x, y float64) {
-	c.dc.DrawRoundedRectangle(x-45, y-22, 90, 34, 10)
-	c.fillOutlined(shade(parseHex(s.Body), 0.8))
-}
-
-func stem(c *canvas, x1, y1, x2, y2 float64) {
-	c.dc.MoveTo(x1, y1)
-	c.dc.LineTo(x2, y2)
-	c.strokeWith(ink, 14)
+// drawAntenna draws s's antenna (see antennaGeometry): the zigzag bolt, then
+// each stem, its mount and the ball on its tip.
+func drawAntenna(c *canvas, s Spec, b Layout) {
+	a := antennaGeometry(s, b)
+	if len(a.bolt) > 0 {
+		c.dc.MoveTo(a.bolt[0][0], a.bolt[0][1])
+		for _, p := range a.bolt[1:] {
+			c.dc.LineTo(p[0], p[1])
+		}
+		c.outlinedStroke(parseHex(s.Accent), 18)
+	}
+	for i, base := range a.bases {
+		if i < len(a.stems) {
+			st := a.stems[i]
+			c.dc.MoveTo(st[0][0], st[0][1])
+			c.dc.LineTo(st[1][0], st[1][1])
+			c.strokeWith(ink, antennaStemWidth)
+		}
+		c.dc.DrawRoundedRectangle(base.x, base.y, base.w, base.h, base.r)
+		c.fillOutlined(shade(parseHex(s.Body), 0.8))
+		if i < len(a.balls) {
+			ball := a.balls[i]
+			c.dc.DrawCircle(ball.x, ball.y, ball.r)
+			c.fillOutlined(parseHex(s.Accent))
+		}
+	}
 }
 
 var antennaParts = map[string]part{
-	"none": func(*canvas, Spec, Layout) {},
-	"ball": func(c *canvas, s Spec, b Layout) {
-		x, top := b.CX(), b.Y
-		stem(c, x, top, x, top-110)
-		antennaBase(c, s, x, top)
-		c.dc.DrawCircle(x, top-130, 34)
-		c.fillOutlined(parseHex(s.Accent))
-	},
-	"double": func(c *canvas, s Spec, b Layout) {
-		top := b.Y
-		for _, side := range []float64{-1, 1} {
-			x := b.CX() + side*70
-			stem(c, x, top, x+side*50, top-110)
-			antennaBase(c, s, x, top+8)
-			c.dc.DrawCircle(x+side*58, top-128, 26)
-			c.fillOutlined(parseHex(s.Accent))
-		}
-	},
-	"bolt": func(c *canvas, s Spec, b Layout) {
-		x, top := b.CX(), b.Y
-		c.dc.MoveTo(x, top)
-		c.dc.LineTo(x-35, top-70)
-		c.dc.LineTo(x+30, top-90)
-		c.dc.LineTo(x-10, top-170)
-		c.outlinedStroke(parseHex(s.Accent), 18)
-		antennaBase(c, s, x, top)
-	},
+	"none":   func(*canvas, Spec, Layout) {},
+	"ball":   drawAntenna,
+	"double": drawAntenna,
+	"bolt":   drawAntenna,
 }

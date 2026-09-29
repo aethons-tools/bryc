@@ -15,11 +15,13 @@ const (
 // drawBody draws the neck, the shoulders, and an accent-colored chest light.
 func drawBody(c *canvas, s Spec, head Layout) {
 	body := parseHex(s.Body)
-	c.dc.DrawRectangle(head.CX()-70, head.Y+head.H-30, 140, 150)
+	neck := neckRect(head)
+	c.dc.DrawRectangle(neck.x, neck.y, neck.w, neck.h)
 	c.fillOutlined(shade(body, 0.7))
 	shoulderPath(c, *s.Shoulders)
 	c.fillOutlined(body)
-	c.dc.DrawCircle(head.CX(), 920, 30)
+	light := chestLight(head)
+	c.dc.DrawCircle(light.x, light.y, light.r)
 	c.fillOutlined(parseHex(s.Accent))
 }
 

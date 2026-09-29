@@ -41,26 +41,20 @@ func curve(expression string, cx, y, width, x float64) float64 {
 // bentRect traces a rectangle of the given size whose top and bottom edges
 // follow the expression's curve.
 func bentRect(c *canvas, expression string, cx, y, w, h float64) {
-	const steps = 24
 	c.dc.NewSubPath()
-	for i := 0; i <= steps; i++ {
-		x := cx - w/2 + w*float64(i)/steps
-		c.dc.LineTo(x, curve(expression, cx, y, w, x)-h/2)
-	}
-	for i := steps; i >= 0; i-- {
-		x := cx - w/2 + w*float64(i)/steps
-		c.dc.LineTo(x, curve(expression, cx, y, w, x)+h/2)
+	for _, p := range bentRectOutline(expression, cx, y, w, h) {
+		c.dc.LineTo(p.X, p.Y)
 	}
 	c.dc.ClosePath()
 }
 
 var mouthParts = map[string]part{
 	"grille": func(c *canvas, s Spec, b Layout) {
-		const w, h = 240.0, 2 * grilleHalfHeight
+		const w, h = grilleWidth, 2 * grilleHalfHeight
 		cx, y := b.CX(), mouthY(s, b)
 		bentRect(c, s.Expression, cx, y, w, h)
 		c.fillOutlined(metal)
-		for x := cx - 80; x <= cx+80; x += 40 {
+		for _, x := range grilleBars(cx) {
 			yc := curve(s.Expression, cx, y, w, x)
 			c.dc.MoveTo(x, yc-h/2)
 			c.dc.LineTo(x, yc+h/2)
@@ -68,11 +62,11 @@ var mouthParts = map[string]part{
 		c.strokeWith(ink, 8)
 	},
 	"slot": func(c *canvas, s Spec, b Layout) {
-		bentRect(c, s.Expression, b.CX(), mouthY(s, b), 120, 36)
+		bentRect(c, s.Expression, b.CX(), mouthY(s, b), slotWidth, slotHeight)
 		c.fillOutlined(screen)
 	},
 	"line": func(c *canvas, s Spec, b Layout) {
-		const w, steps = 180.0, 24
+		const w, steps = lineMouthWidth, 24
 		cx, y := b.CX(), mouthY(s, b)
 		for i := 0; i <= steps; i++ {
 			x := cx - w/2 + w*float64(i)/steps
@@ -91,11 +85,8 @@ var mouthParts = map[string]part{
 // cut out using the even-odd fill rule.
 func drawJaw(c *canvas, s Spec, b Layout) {
 	dc := c.dc
-	my := mouthY(s, b)
-	top := my - b.H*jawHeight
-	cx, cy := b.CX(), b.Y+b.H/2
-	innerL := func(y float64) float64 { return leftEdge(s.Head, b, y) + jawBand }
-	outerL := cx - jawOverhang*(cx-leftEdge(s.Head, b, cy+(top-cy)/jawOverhang))
+	j := jawFrameFor(s, b)
+	my, top, cx, cy, innerL, outerL := j.my, j.top, j.cx, j.cy, j.innerL, j.outerL
 
 	// Clip to everything below the jaw's top edge.
 	dc.DrawRectangle(0, top, virtual, virtual-top)
@@ -135,11 +126,12 @@ func drawJaw(c *canvas, s Spec, b Layout) {
 
 	// Outline the flat tops of the arms, which the clip left open, and add a
 	// hinge bolt on each.
-	for _, side := range []float64{-1, 1} {
+	bolts := jawBolts(s, b)
+	for i, side := range []float64{-1, 1} {
 		dc.MoveTo(cx+side*(cx-outerL), top)
 		dc.LineTo(cx+side*(cx-innerL(top)), top)
 		c.strokeWith(ink, outline)
-		dc.DrawCircle(cx+side*(cx-(outerL+innerL(top+28))/2), top+28, 9)
+		dc.DrawCircle(bolts[i][0], bolts[i][1], jawBoltRadius)
 		dc.SetColor(metal)
 		dc.FillPreserve()
 		dc.SetColor(ink)

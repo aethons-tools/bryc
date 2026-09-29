@@ -124,14 +124,28 @@ func headOutline(s Spec, b Layout) []mesh.Vec2 {
 	return p.done()
 }
 
+// minShoulderRound is the smallest shoulder corner radius the outline
+// rounds: the 3D model's bevel. Smaller corners are traced sharp, since a
+// bevel can't follow a curve tighter than itself.
+const minShoulderRound = 12.0
+
+// minShoulderEdge is the shortest edge the shoulder outline keeps between
+// sampled corner points, so the 3D bevel never meets a sliver of an edge.
+const minShoulderEdge = 18.0
+
 // shoulderOutline is the shoulders' outline (see shoulderPath), cut off at
-// the bottom of the canvas.
+// the bottom of the canvas. It is simplified for the 3D bevel: tiny corner
+// radii are traced sharp, and corner samples that crowd their neighbours
+// (at the bottom cut or where an arc meets a short edge) are dropped.
 func shoulderOutline(shoulders int) []mesh.Vec2 {
 	var p pathBuilder
 	t := float64(shoulders) / ShouldersMax
 	p.add(shoulderLeft, shoulderBottom)
 	if t >= 0 {
 		r := maxShoulderRadius * t
+		if r < minShoulderRound {
+			r = 0
+		}
 		p.add(shoulderLeft, shoulderTop+r)
 		if r > 0 {
 			p.arc(shoulderLeft+r, shoulderTop+r, r, math.Pi, 1.5*math.Pi, quarterSteps)
@@ -152,7 +166,39 @@ func shoulderOutline(shoulders int) []mesh.Vec2 {
 	p.add(shoulderRight, shoulderBottom)
 	// Large corner radii reach below the canvas, so trace the full shape
 	// and clip it rather than just moving the bottom edge up.
-	return clipY(p.done(), virtual, false)
+	cut := clipY(p.done(), virtual, false)
+	if t <= 0 {
+		return cut // no arcs: every point is a corner or spike tip
+	}
+	// Only arc samples (and the straight edges' ends, which are arc samples
+	// too) may go; the points on the cut stay.
+	return thin(cut, minShoulderEdge, func(v mesh.Vec2) bool { return v.Y != virtual })
+}
+
+// thin drops droppable points that lie closer than gap to a kept neighbour:
+// walking the outline, a droppable point is skipped if it is too close to
+// the last kept point, and a fixed point removes any droppable points kept
+// just before it that are too close to it.
+func thin(poly []mesh.Vec2, gap float64, droppable func(mesh.Vec2) bool) []mesh.Vec2 {
+	near := func(a, b mesh.Vec2) bool { return math.Hypot(a.X-b.X, a.Y-b.Y) < gap }
+	var out []mesh.Vec2
+	for _, v := range poly {
+		if droppable(v) {
+			if len(out) > 0 && near(out[len(out)-1], v) {
+				continue
+			}
+		} else {
+			for len(out) > 0 && droppable(out[len(out)-1]) && near(out[len(out)-1], v) {
+				out = out[:len(out)-1]
+			}
+		}
+		out = append(out, v)
+	}
+	// The closing edge, back to the first point.
+	for len(out) > 1 && droppable(out[len(out)-1]) && near(out[len(out)-1], out[0]) {
+		out = out[:len(out)-1]
+	}
+	return out
 }
 
 // clipY clips poly (Sutherland–Hodgman) to one side of the line y = at:
@@ -227,8 +273,8 @@ func jawBolts(s Spec, b Layout) [2][2]float64 {
 	return bolts
 }
 
-// jawInner is the jaw's inner edge as drawJaw cuts it out: down the left
-// arm's inside from the top, along the mouth line, and up the right arm.
+// jawInner is the jaw's inner edge, following drawJaw's cut-out: down the
+// left arm's inside from the top, along the mouth line, and up the right arm.
 func jawInner(s Spec, b Layout) []mesh.Vec2 {
 	j := jawFrameFor(s, b)
 	const steps = 24
@@ -239,19 +285,25 @@ func jawInner(s Spec, b Layout) []mesh.Vec2 {
 	// toward the chin the arms' inner edges there pass the mouth's ends (the
 	// 2D even-odd fill hides the resulting sliver), so the sides stop at the
 	// mouth line to keep the outline simple.
+	// The right arm mirrors the left arm's samples exactly (drawJaw steps
+	// the right arm up from the bottom instead), so the plate is equally
+	// thick on both sides.
 	sideEnd := min(endY, j.my)
-	var p pathBuilder
+	var left []mesh.Vec2
 	for y := j.top; y < sideEnd; y += 10 {
-		p.add(j.innerL(y), y)
+		left = append(left, mesh.Vec2{X: j.innerL(y), Y: y})
+	}
+	var p pathBuilder
+	for _, v := range left {
+		p.add(v.X, v.Y)
 	}
 	for i := 0; i <= steps; i++ {
 		x := x0 + w*float64(i)/steps
 		p.add(x, curve(s.Expression, j.cx, j.my, w, x))
 	}
-	for y := sideEnd - 10; y >= j.top; y -= 10 {
-		p.add(2*j.cx-j.innerL(y), y)
+	for i := len(left) - 1; i >= 0; i-- {
+		p.add(2*j.cx-left[i].X, left[i].Y)
 	}
-	p.add(2*j.cx-j.innerL(j.top), j.top)
 	return p
 }
 

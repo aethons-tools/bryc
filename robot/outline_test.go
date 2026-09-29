@@ -1,6 +1,7 @@
 package robot
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -136,6 +137,48 @@ func TestOutlinesHaveNoCrossingEdges(t *testing.T) {
 	for sh := ShouldersMin; sh <= ShouldersMax; sh++ {
 		if i, j, bad := crossingEdges(shoulderOutline(sh)); bad {
 			t.Errorf("shoulders %d: edges %d and %d cross", sh, i, j)
+		}
+	}
+}
+
+// extrudes checks that poly extrudes into a closed solid, as the 3D model does.
+func extrudes(t *testing.T, name string, poly []mesh.Vec2, depth, bevel float64) {
+	t.Helper()
+	m, err := mesh.Extrude(poly, depth, bevel)
+	if err != nil {
+		t.Errorf("%s: %v", name, err)
+		return
+	}
+	if !m.Closed() || m.Volume() <= 0 {
+		t.Errorf("%s: closed %v, volume %v", name, m.Closed(), m.Volume())
+	}
+}
+
+func TestShoulderOutlineExtrudes(t *testing.T) {
+	for sh := ShouldersMin; sh <= ShouldersMax; sh++ {
+		extrudes(t, fmt.Sprint("shoulders ", sh), shoulderOutline(sh), 360, 12)
+	}
+}
+
+func TestHeadOutlineExtrudes(t *testing.T) {
+	for _, tall := range []bool{false, true} {
+		for _, head := range HeadValues {
+			s := Spec{Head: head, Tall: &tall}
+			extrudes(t, fmt.Sprint(head, " tall=", tall), headOutline(s, headLayout(s)), 300, 12)
+		}
+	}
+}
+
+func TestJawOutlineExtrudes(t *testing.T) {
+	for _, tall := range []bool{false, true} {
+		for _, head := range HeadValues {
+			for _, expr := range ExpressionValues {
+				for face := FaceMin; face <= FaceMax; face++ {
+					s := Spec{Head: head, Tall: &tall, Expression: expr, Face: &face}
+					name := fmt.Sprint(head, " tall=", tall, " ", expr, " face ", face)
+					extrudes(t, name, jawOutline(s, headLayout(s)), 330, 8)
+				}
+			}
 		}
 	}
 }

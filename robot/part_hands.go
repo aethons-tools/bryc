@@ -6,7 +6,7 @@ import "github.com/aethons-tools/bryc/robot/mesh"
 // drawn before the palm, so the palm's outline covers their roots.
 func drawHands(c *canvas, s Spec, b Layout) {
 	body := parseHex(s.Body)
-	for _, h := range hands(b) {
+	for _, h := range hands(b, handTilt2D) {
 		for _, d := range h.digits {
 			c.polygon(h, capsuleOutline(d.root, d.tip, d.r))
 			c.fillOutlined(body)

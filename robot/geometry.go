@@ -17,8 +17,8 @@ func floorShadow(head Layout) (cx, cy, rx, ry float64) {
 }
 
 // floorShadowY is the height of the floor the head floats over. The 3D
-// viewer puts its shadow at the same height (1000−940 = 0.06 m).
-const floorShadowY = 940.0
+// viewer puts its shadow at the same height (1000−950 = 0.05 m).
+const floorShadowY = 950.0
 
 // boltEars are the "bolts" ears: a block on each side of the head with a
 // dark dot where it meets the head, left first.

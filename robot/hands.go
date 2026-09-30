@@ -6,16 +6,16 @@ import (
 	"github.com/aethons-tools/bryc/robot/mesh"
 )
 
-// Hands float in front of the robot below its chin, palms down as if on a
-// keyboard: we see the backs of the hands, fingers pointing down (toward
-// us), thumbs toward the middle. 2D and 3D share this geometry.
+// Two hands float below the head, thumbs toward the middle. 2D and 3D
+// share their shape but pose them differently: in 2D they stand up below
+// the head, palms facing us, fingertips reaching the chin; in 3D they lie
+// almost flat, palms down as if on a keyboard, with a gap below the head.
 
 // hand is one hand. Its shape is given as offsets from the wrist in "hand
-// space": u across the hand, v along it toward the fingertips. 2D draws
-// hand space straight onto the canvas (v down); the 3D model lays it nearly
-// flat in front of the face.
+// space": u across the hand (toward the middle is +u for the left hand), v
+// along it toward the fingertips. See at for 2D and addHands for 3D.
 type hand struct {
-	wrist  mesh.Vec2   // canvas position of the wrist
+	wrist  mesh.Vec2   // canvas position of the wrist in 2D
 	palm   []mesh.Vec2 // palm outline, offsets from the wrist
 	digits [3]digit    // the two fingers, then the thumb
 }
@@ -33,9 +33,12 @@ type digit struct {
 const (
 	handSpread = 195.0 // wrist distance from the head's centre line
 	handScale  = 1.15  // size of the hand relative to the shapes below
-	handWristY = 712.0 // wrist height: below the lowest mouth, overlapping the chin
-	handTilt   = 18.0  // degrees the fingers turn in toward the middle
-	palmRound  = 30.0  // corner radius of the palm's triangle
+	handWristY = 898.0 // 2D wrist height: the fingertips just reach the chin
+	// Degrees the fingers lean in toward the middle: in 2D they splay out
+	// (which also lifts the thumb), in 3D they turn in as if typing.
+	handTilt2D = -15.0
+	handTilt3D = 18.0
+	palmRound  = 30.0 // corner radius of the palm's triangle
 )
 
 var (
@@ -49,9 +52,10 @@ var (
 	}
 )
 
-// hands are the robot's two hands, left first, for the head in b.
-func hands(b Layout) [2]hand {
-	a := handTilt * math.Pi / 180
+// hands are the robot's two hands, left first, for the head in b, with the
+// fingers leaning tilt degrees in toward the middle.
+func hands(b Layout, tilt float64) [2]hand {
+	a := tilt * math.Pi / 180
 	sin, cos := math.Sin(a), math.Cos(a)
 	var out [2]hand
 	for i, side := range []float64{-1, 1} {
@@ -72,8 +76,9 @@ func hands(b Layout) [2]hand {
 	return out
 }
 
-// at is the canvas position of an offset from the wrist.
-func (h hand) at(p mesh.Vec2) mesh.Vec2 { return mesh.Vec2{X: h.wrist.X + p.X, Y: h.wrist.Y + p.Y} }
+// at is the 2D canvas position of an offset from the wrist: the hand
+// stands up, fingers pointing up the canvas.
+func (h hand) at(p mesh.Vec2) mesh.Vec2 { return mesh.Vec2{X: h.wrist.X + p.X, Y: h.wrist.Y - p.Y} }
 
 // roundedConvexOutline is the outline of circles of radius r centred on
 // the corners of the convex polygon pts, joined by their outer tangents:

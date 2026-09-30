@@ -7,12 +7,13 @@ import (
 	"github.com/aethons-tools/bryc/robot/mesh"
 )
 
-// The 3D hands lie nearly flat in front of the face, palms down: hand
-// space's v axis (toward the fingertips) points down handPitch from level,
-// toward the viewer, and the backs of the hands face up and forward.
+// The 3D hands lie almost flat below the head, palms down: hand space's v
+// axis (toward the fingertips) points toward the viewer, handPitch below
+// level, and the backs of the hands face up.
 const (
-	handPitch     = 35.0         // degrees below level the fingers point
-	handWristZ    = faceZ + 50.0 // wrist distance in front of the head's centre
+	handPitch     = 8.0   // degrees below level the fingers point
+	handWristY3   = 815.0 // wrist height (canvas y), leaving a gap below the head and jaw
+	handWristZ    = faceZ // the wrists line up with the face; the hands reach forward
 	palmThickness = 44.0
 	palmBevel     = 18.0
 	// digitCurl is how far a finger or thumb curls down below the palm's
@@ -29,8 +30,8 @@ func addHands(m *modelBuilder) {
 	// back is the palm's normal on the back of the hand; fingers curl the
 	// other way, down toward the (imaginary) keyboard.
 	back := mesh.Vec3{X: 0, Y: math.Cos(p), Z: math.Sin(p)}
-	for i, h := range hands(m.b) {
-		wrist := upAt(h.wrist.X, h.wrist.Y, handWristZ)
+	for i, h := range hands(m.b, handTilt3D) {
+		wrist := upAt(h.wrist.X, handWristY3, handWristZ)
 		place := func(o mesh.Vec2) mesh.Vec3 {
 			return wrist.Add(mesh.Vec3{X: o.X}).Add(along.Scale(o.Y))
 		}

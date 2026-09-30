@@ -29,7 +29,7 @@ func handExtent(h hand) (lo, hi mesh.Vec2) {
 
 func TestHandsMirrored(t *testing.T) {
 	for _, b := range []Layout{headBox, tallHeadBox} {
-		hs := hands(b)
+		hs := hands(b, handTilt2D)
 		l, r := hs[0], hs[1]
 		if l.wrist.X+r.wrist.X != 2*b.CX() || l.wrist.Y != r.wrist.Y {
 			t.Errorf("wrists %v %v not mirrored about %v", l.wrist, r.wrist, b.CX())
@@ -54,7 +54,7 @@ func TestHandsClearOfMouthAndShadow(t *testing.T) {
 				b := headLayout(s)
 				mouthBottom := mouthY(s, b) + grilleHalfHeight + maxBend
 				_, shadowY, _, shadowRY := floorShadow(b)
-				for i, h := range hands(b) {
+				for i, h := range hands(b, handTilt2D) {
 					lo, hi := handExtent(h)
 					if lo.Y <= mouthBottom {
 						t.Errorf("%s tall=%v face %d hand %d: top %.0f covers the mouth (bottom %.0f)", head, tall, face, i, lo.Y, mouthBottom)
@@ -72,7 +72,7 @@ func TestRenderHands(t *testing.T) {
 	s := Resolve(Spec{Body: "#3366cc", Background: "#ff0000"}, 3)
 	img := Render(s, 1000)
 	body := color.NRGBA{0x33, 0x66, 0xcc, 0xff}
-	for i, h := range hands(headLayout(s)) {
+	for i, h := range hands(headLayout(s), handTilt2D) {
 		// The middle of the palm's knuckle edge, and each fingertip.
 		probes := []mesh.Vec2{h.at(mesh.Vec2{X: (h.digits[0].root.X + h.digits[1].root.X) / 2, Y: (h.digits[0].root.Y + h.digits[1].root.Y) / 2})}
 		for _, d := range h.digits {
@@ -86,10 +86,20 @@ func TestRenderHands(t *testing.T) {
 	}
 }
 
+// handGap3D is the least gap, in metres, between the 3D hands and the head.
+const handGap3D = 0.04
+
 func TestModelHands(t *testing.T) {
 	for _, mouth := range MouthValues {
 		s := Resolve(Spec{Mouth: mouth}, 4)
 		nodes := nodeNames(s)
+		headBottom := math.Inf(1)
+		for _, name := range []string{"head", "jaw"} {
+			if m, ok := nodes[name]; ok {
+				lo, _ := m.Bounds()
+				headBottom = math.Min(headBottom, lo.Y)
+			}
+		}
 		for i := range 2 {
 			for _, name := range []string{fmt.Sprintf("hand-%d", i), fmt.Sprintf("finger-%d-0", i), fmt.Sprintf("finger-%d-1", i), fmt.Sprintf("thumb-%d", i)} {
 				m, ok := nodes[name]
@@ -99,9 +109,14 @@ func TestModelHands(t *testing.T) {
 				if !m.Closed() || m.Volume() <= 0 {
 					t.Errorf("%s %s: closed %v volume %v", mouth, name, m.Closed(), m.Volume())
 				}
-				// In front of the face, and of the jaw's front.
-				if lo, _ := m.Bounds(); lo.Z <= jawFront*0.001 {
-					t.Errorf("%s %s: back at z %.3f, behind the face", mouth, name, lo.Z)
+				// Clear of the head and jaw, with a visible gap, and above
+				// the floor.
+				lo, hi := m.Bounds()
+				if hi.Y > headBottom-handGap3D {
+					t.Errorf("%s %s: top at y %.3f, want a gap below the head (bottom %.3f)", mouth, name, hi.Y, headBottom)
+				}
+				if lo.Y <= 0.05 {
+					t.Errorf("%s %s: bottom at y %.3f, on the floor", mouth, name, lo.Y)
 				}
 			}
 		}

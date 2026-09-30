@@ -76,37 +76,6 @@ func TestRenderEveryValue(t *testing.T) {
 	}
 }
 
-// Shoulder probes, in virtual units: just inside the top-left corner of the
-// shoulders, and above the shoulder line where the left spike rises.
-const (
-	cornerX, cornerY = 140, 840
-	spikeX, spikeY   = 140, 780
-)
-
-func TestRenderShoulders(t *testing.T) {
-	body, bg := color.NRGBA{0x33, 0x66, 0xcc, 0xff}, color.NRGBA{0xff, 0, 0, 0xff}
-	render := func(shoulders int) image.Image {
-		return Render(Resolve(Spec{Body: "#3366cc", Background: "#ff0000", Shoulders: &shoulders}, 3), 200)
-	}
-	cases := []struct {
-		shoulders     int
-		corner, spike color.NRGBA
-	}{
-		{0, body, bg},      // square corners, no spike
-		{100, bg, bg},      // corner rounded away
-		{-100, body, body}, // square corner with a spike above it
-	}
-	for _, c := range cases {
-		img := render(c.shoulders)
-		if got := pixel(img, 200, cornerX, cornerY); !near(got, c.corner) {
-			t.Errorf("shoulders=%d: corner = %v, want %v", c.shoulders, got, c.corner)
-		}
-		if got := pixel(img, 200, spikeX, spikeY); !near(got, c.spike) {
-			t.Errorf("shoulders=%d: spike probe = %v, want %v", c.shoulders, got, c.spike)
-		}
-	}
-}
-
 // TestRenderGlowerEye checks the HAL-style glowering eye at its largest (a
 // single size-4 eye): a black lens with the glow lit in its center, inside a
 // metal ring.

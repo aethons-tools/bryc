@@ -82,20 +82,6 @@ func TestRequestResolvePaletteAndOverride(t *testing.T) {
 	}
 }
 
-func TestResolveShouldersRange(t *testing.T) {
-	var neg, pos bool
-	for seed := uint64(0); seed < 200; seed++ {
-		v := *Resolve(Spec{}, seed).Shoulders
-		if v < ShouldersMin || v > ShouldersMax {
-			t.Fatalf("seed %d: shoulders = %d out of range", seed, v)
-		}
-		neg, pos = neg || v < 0, pos || v > 0
-	}
-	if !neg || !pos {
-		t.Errorf("200 seeds never produced both spiky and rounded shoulders")
-	}
-}
-
 func TestCellSeed(t *testing.T) {
 	seen := map[uint64]bool{}
 	for cell := 0; cell < 9; cell++ {

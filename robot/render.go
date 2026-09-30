@@ -15,7 +15,7 @@ func Render(s Spec, size int) image.Image {
 		c.dc.Clear()
 	}
 	head := headLayout(s)
-	drawBody(c, s, head)
+	drawShadow(c, head)
 	earParts[s.Ears](c, s, head)
 	drawHead(c, s, head)
 	if *s.Panels {

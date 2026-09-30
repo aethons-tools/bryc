@@ -22,7 +22,7 @@ func TestGolden(t *testing.T) {
 		"seed-3": Resolve(Spec{}, 3),
 		"pinned-transparent": {
 			Head: "dome", Tall: boolp(true), Eyes: "visor", EyeCount: "4", EyeSize: "2", EyeStyle: "glower", Mouth: "jaw", Expression: "smile", Antenna: "bolt", Ears: "dials",
-			Face: intp(1), Shoulders: intp(-60), Rivets: boolp(true), Panels: boolp(true), Blush: boolp(true),
+			Face: intp(1), Rivets: boolp(true), Panels: boolp(true), Blush: boolp(true),
 			Body: "#98e2c6", Accent: "#ff8fa3", Glow: "#3ae0ff", Background: "none",
 		},
 	}

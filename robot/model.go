@@ -14,11 +14,9 @@ import (
 // 1000−canvas y (so up is +y) and z points out of the face. Every node mesh is
 // scaled by 0.001 at the end, so the model is about one metre tall.
 const (
-	headDepth                    = 300.0
-	faceZ                        = headDepth / 2
-	headBevel                    = 12.0
-	neckDepth, neckBevel         = 140.0, 8.0
-	shoulderDepth, shoulderBevel = 360.0, 12.0
+	headDepth = 300.0
+	faceZ     = headDepth / 2
+	headBevel = 12.0
 )
 
 type modelBuilder struct {
@@ -62,7 +60,7 @@ func mustExtrude(poly []mesh.Vec2, depth, bevel float64) mesh.Mesh {
 
 // materials are the model's shared materials.
 type materials struct {
-	body, jaw, neck, antennaBase, accent, metal, screen, glow, ink, blush glb.Material
+	body, jaw, antennaBase, accent, metal, screen, glow, ink, blush glb.Material
 }
 
 // linear converts an sRGB color to linear RGBA with the given alpha.
@@ -84,7 +82,6 @@ func materialsFor(s Spec) materials {
 	return materials{
 		body:        glb.Material{Name: "body", Color: linear(body, 1), Roughness: 0.45},
 		jaw:         glb.Material{Name: "jaw", Color: linear(shade(body, jawShade), 1), Roughness: 0.45},
-		neck:        glb.Material{Name: "neck", Color: linear(shade(body, 0.7), 1), Roughness: 0.45},
 		antennaBase: glb.Material{Name: "antenna-base", Color: linear(shade(body, 0.8), 1), Roughness: 0.45},
 		accent:      glb.Material{Name: "accent", Color: linear(accent, 1), Roughness: 0.45},
 		metal:       glb.Material{Name: "metal", Color: linear(metal, 1), Metallic: 0.8, Roughness: 0.3},
@@ -100,18 +97,6 @@ func Model(s Spec) glb.Scene {
 	m := &modelBuilder{s: s, b: headLayout(s), mat: materialsFor(s)}
 
 	m.add("head", mustExtrude(upPoly(headOutline(s, m.b)), headDepth, headBevel), m.mat.body)
-
-	n := neckRect(m.b)
-	m.add("neck", mustExtrude(upPoly(roundedRectOutline(n.x, n.y, n.w, n.h, 0)), neckDepth, neckBevel), m.mat.neck)
-
-	shoulders := 0
-	if s.Shoulders != nil {
-		shoulders = *s.Shoulders
-	}
-	m.add("shoulders", mustExtrude(upPoly(shoulderOutline(shoulders)), shoulderDepth, shoulderBevel), m.mat.body)
-
-	c := chestLight(m.b)
-	m.add("chest-light", mesh.Ellipsoid(c.r, c.r, 15).Translate(upAt(c.x, c.y, shoulderDepth/2)), m.mat.accent)
 
 	addFace(m)
 	addHardware(m)

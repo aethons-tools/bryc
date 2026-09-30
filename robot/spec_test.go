@@ -84,7 +84,7 @@ func TestParseQueryAggregatesProblems(t *testing.T) {
 }
 
 func TestQueryRoundTrip(t *testing.T) {
-	req := mustParse(t, "head=square&rivets=false&body=%23010203&background=none&shoulders=0")
+	req := mustParse(t, "head=square&rivets=false&body=%23010203&background=none&face=0")
 	again, err := ParseQuery(req.Spec.Query())
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +92,7 @@ func TestQueryRoundTrip(t *testing.T) {
 	if !reflect.DeepEqual(again.Spec, req.Spec) {
 		t.Errorf("round trip: got %+v, want %+v", again.Spec, req.Spec)
 	}
-	if got := req.Spec.Query().Encode(); got != "background=none&body=%23010203&head=square&rivets=false&shoulders=0" {
+	if got := req.Spec.Query().Encode(); got != "background=none&body=%23010203&face=0&head=square&rivets=false" {
 		t.Errorf("Query().Encode() = %q", got)
 	}
 }
@@ -105,7 +105,7 @@ func TestFacets(t *testing.T) {
 		names = append(names, f.Name)
 		byName[f.Name] = f
 	}
-	want := "head tall eyes eyecount eyesize eyestyle eyelashes mouth expression face antenna ears shoulders rivets panels blush body accent glow background"
+	want := "head tall eyes eyecount eyesize eyestyle eyelashes mouth expression face antenna ears rivets panels blush body accent glow background"
 	if strings.Join(names, " ") != want {
 		t.Errorf("facet order = %v", names)
 	}
@@ -123,7 +123,7 @@ func TestFacets(t *testing.T) {
 			t.Errorf("%s facet = %+v", name, f)
 		}
 	}
-	ranges := map[string][2]int{"shoulders": {ShouldersMin, ShouldersMax}, "face": {FaceMin, FaceMax}}
+	ranges := map[string][2]int{"face": {FaceMin, FaceMax}}
 	for name, r := range ranges {
 		if f := byName[name]; f.Kind != KindRange || *f.Min != r[0] || *f.Max != r[1] {
 			t.Errorf("%s facet = %+v", name, f)
@@ -153,19 +153,20 @@ func TestPaletteNamesSorted(t *testing.T) {
 	}
 }
 
-func TestParseQueryShoulders(t *testing.T) {
-	for raw, want := range map[string]int{"shoulders=-40": -40, "shoulders=0": 0, "shoulders=100": 100} {
+func TestParseQueryRetiredShoulders(t *testing.T) {
+	// shoulders was removed along with the body; old links still parse.
+	for _, raw := range []string{"shoulders=-40", "shoulders=150", "shoulders=wide&head=dome"} {
 		req := mustParse(t, raw)
-		if req.Spec.Shoulders == nil || *req.Spec.Shoulders != want {
-			t.Errorf("%s: Shoulders = %v, want %d", raw, req.Spec.Shoulders, want)
+		if q := req.Spec.Query(); q.Has("shoulders") {
+			t.Errorf("%s: shoulders survived as %v", raw, q)
 		}
 	}
+}
+
+func TestParseQueryRanges(t *testing.T) {
 	for raw, want := range map[string]string{
-		"shoulders=150":  "shoulders: 150 is outside -100 to 100",
-		"shoulders=-101": "shoulders: -101 is outside -100 to 100",
-		"shoulders=wide": `shoulders: "wide" is not an integer`,
-		"face=3":         "face: 3 is outside -1 to 2",
-		"face=-2":        "face: -2 is outside -1 to 2",
+		"face=3":  "face: 3 is outside -1 to 2",
+		"face=-2": "face: -2 is outside -1 to 2",
 	} {
 		q, _ := url.ParseQuery(raw)
 		if _, err := ParseQuery(q); err == nil || !strings.Contains(err.Error(), want) {

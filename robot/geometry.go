@@ -10,13 +10,15 @@ type rect struct{ x, y, w, h, r float64 }
 // circle is a circle by its center and radius.
 type circle struct{ x, y, r float64 }
 
-// neckRect is the neck, from inside the head's bottom down behind the shoulders.
-func neckRect(head Layout) rect {
-	return rect{head.CX() - 70, head.Y + head.H - 30, 140, 150, 0}
+// floorShadow is the soft shadow on the floor under the floating head, as
+// an ellipse: center, and horizontal and vertical radii.
+func floorShadow(head Layout) (cx, cy, rx, ry float64) {
+	return head.CX(), floorShadowY, head.W * 0.42, 26
 }
 
-// chestLight is the accent-colored light on the chest.
-func chestLight(head Layout) circle { return circle{head.CX(), 920, 30} }
+// floorShadowY is the height of the floor the head floats over. The 3D
+// viewer puts its shadow at the same height (1000−880 = 0.12 m).
+const floorShadowY = 880.0
 
 // boltEars are the "bolts" ears: a block on each side of the head with a
 // dark dot where it meets the head, left first.

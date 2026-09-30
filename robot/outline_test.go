@@ -44,29 +44,6 @@ func TestHeadOutlineMatchesEdges(t *testing.T) {
 	}
 }
 
-func TestShoulderOutline(t *testing.T) {
-	for _, sh := range []int{-100, -40, 0, 40, 100} {
-		poly := shoulderOutline(sh)
-		lo, hi := math.Inf(1), math.Inf(-1)
-		for _, p := range poly {
-			lo, hi = math.Min(lo, p.Y), math.Max(hi, p.Y)
-		}
-		if hi != virtual {
-			t.Errorf("shoulders %d: bottom at %v, want cut at %v", sh, hi, virtual)
-		}
-		if _, err := mesh.Triangulate(poly); err != nil {
-			t.Errorf("shoulders %d: %v", sh, err)
-		}
-		wantTop := shoulderTop
-		if sh < 0 {
-			wantTop = shoulderTop - maxSpikeHeight*float64(-sh)/ShouldersMax
-		}
-		if math.Abs(lo-wantTop) > 1e-9 {
-			t.Errorf("shoulders %d: top %v, want %v", sh, lo, wantTop)
-		}
-	}
-}
-
 func TestJawOutlineIsSimpleU(t *testing.T) {
 	no := false
 	for _, head := range HeadValues {
@@ -134,11 +111,6 @@ func TestOutlinesHaveNoCrossingEdges(t *testing.T) {
 			}
 		}
 	}
-	for sh := ShouldersMin; sh <= ShouldersMax; sh++ {
-		if i, j, bad := crossingEdges(shoulderOutline(sh)); bad {
-			t.Errorf("shoulders %d: edges %d and %d cross", sh, i, j)
-		}
-	}
 }
 
 // extrudes checks that poly extrudes into a closed solid, as the 3D model does.
@@ -151,12 +123,6 @@ func extrudes(t *testing.T, name string, poly []mesh.Vec2, depth, bevel float64)
 	}
 	if !m.Closed() || m.Volume() <= 0 {
 		t.Errorf("%s: closed %v, volume %v", name, m.Closed(), m.Volume())
-	}
-}
-
-func TestShoulderOutlineExtrudes(t *testing.T) {
-	for sh := ShouldersMin; sh <= ShouldersMax; sh++ {
-		extrudes(t, fmt.Sprint("shoulders ", sh), shoulderOutline(sh), 360, 12)
 	}
 }
 

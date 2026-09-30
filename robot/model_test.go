@@ -29,7 +29,7 @@ func nodeNames(s Spec) map[string]mesh.Mesh {
 func TestModelCoreParts(t *testing.T) {
 	s := Resolve(Spec{}, 1)
 	nodes := nodeNames(s)
-	for _, name := range []string{"head", "neck", "shoulders", "chest-light"} {
+	for _, name := range []string{"head"} {
 		m, ok := nodes[name]
 		if !ok {
 			t.Fatalf("missing node %q", name)

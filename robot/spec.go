@@ -28,13 +28,6 @@ const (
 	KindRange Kind = "range" // an integer between a facet's Min and Max
 )
 
-// Shoulders range: 0 is square, positive rounds the corners off, negative
-// grows a spike on each shoulder.
-const (
-	ShouldersMin = -100
-	ShouldersMax = 100
-)
-
 // Face position range: 0 is neutral, -1 moves the face down toward the
 // chin, +1 raises the eyes, +2 also raises the mouth under them (see face.go).
 const (
@@ -59,7 +52,7 @@ var (
 // by Resolve; a resolved Spec has every field set.
 type Spec struct {
 	Head, Eyes, EyeCount, EyeSize, EyeStyle, Mouth, Expression, Antenna, Ears string
-	Face, Shoulders                                                           *int
+	Face                                                                      *int
 	Tall, Eyelashes, Rivets, Panels, Blush                                    *bool
 	// Colors are "#rrggbb"; Background may also be "none" (transparent).
 	Body, Accent, Glow, Background string
@@ -96,7 +89,6 @@ func (s *Spec) fields() []field {
 		{name: "face", kind: KindRange, min: FaceMin, max: FaceMax, num: &s.Face},
 		{name: "antenna", kind: KindEnum, values: AntennaValues, str: &s.Antenna},
 		{name: "ears", kind: KindEnum, values: EarsValues, str: &s.Ears},
-		{name: "shoulders", kind: KindRange, min: ShouldersMin, max: ShouldersMax, num: &s.Shoulders},
 		{name: "rivets", kind: KindBool, flag: &s.Rivets},
 		{name: "panels", kind: KindBool, flag: &s.Panels},
 		{name: "blush", kind: KindBool, flag: &s.Blush},
@@ -194,6 +186,9 @@ func (e *ValidationError) Error() string {
 	return "invalid robot options:\n  - " + strings.Join(e.Problems, "\n  - ")
 }
 
+// retired are facets that were removed; ParseQuery ignores them.
+var retired = map[string]bool{"shoulders": true}
+
 // ParseQuery reads a Request from query values. Empty values and "random"
 // mean unset. All parse and validation problems are returned together.
 func ParseQuery(q url.Values) (Request, error) {
@@ -211,8 +206,8 @@ func ParseQuery(q url.Values) (Request, error) {
 	sort.Strings(keys)
 	for _, key := range keys {
 		v := strings.TrimSpace(q.Get(key))
-		if v == "" || v == "random" {
-			continue
+		if v == "" || v == "random" || retired[key] {
+			continue // retired facets are ignored so old links still work
 		}
 		switch key {
 		case "palette":

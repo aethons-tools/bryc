@@ -462,14 +462,42 @@ try {
       controls.autoRotateSpeed = 1.5;
       controls.addEventListener('start', () => { controls.autoRotate = false; });
       const loader = new GLTFLoader();
+      const shadow = floorShadow();
+      scene.add(shadow);
       host.append(renderer.domElement);
       new ResizeObserver(resize).observe(host);
-      ctx = { renderer, scene, camera, controls, loader };
+      ctx = { renderer, scene, camera, controls, loader, shadow };
       return ctx;
     } catch (e) {
       renderer.dispose();
       throw e;
     }
+  }
+
+  // FLOOR_Y is the floor the head floats over, matching the 2D shadow
+  // (floorShadowY in robot/geometry.go: canvas y 880 = 0.12 m).
+  const FLOOR_Y = 0.12;
+
+  // floorShadow is a soft dark oval lying on the floor, like the 2D one.
+  function floorShadow() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, 'rgba(38,38,46,0.45)');
+    grad.addColorStop(0.5, 'rgba(38,38,46,0.3)');
+    grad.addColorStop(1, 'rgba(38,38,46,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = FLOOR_Y;
+    return mesh;
   }
 
   function resize() {
@@ -494,6 +522,11 @@ try {
   function frame(obj) {
     const { camera, controls } = ctx;
     const box = new THREE.Box3().setFromObject(obj);
+    // Size the shadow to the head (as in 2D, ~0.84 of its width and ~0.35
+    // of that deep), then frame the head and its shadow together.
+    const w = box.max.x - box.min.x;
+    ctx.shadow.scale.set(w * 1.1, w * 0.6, 1);
+    box.expandByPoint(new THREE.Vector3(0, FLOOR_Y, 0));
     const centre = box.getCenter(new THREE.Vector3());
     const radius = box.getSize(new THREE.Vector3()).length() / 2;
     const dist = (radius * 1.25) / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2));

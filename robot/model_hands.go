@@ -15,12 +15,20 @@ const (
 	handWristZ    = faceZ + 50.0 // wrist distance in front of the head's centre
 	palmThickness = 44.0
 	palmBevel     = 18.0
+	// digitCurl is how far a finger or thumb curls down below the palm's
+	// plane at its tip, as a fraction of its length; digitSteps is how many
+	// segments trace the curl.
+	digitCurl  = 0.4
+	digitSteps = 8
 )
 
 func addHands(m *modelBuilder) {
 	p := handPitch * math.Pi / 180
 	// along is hand space's v direction in model space; across is u.
 	along := mesh.Vec3{X: 0, Y: -math.Sin(p), Z: math.Cos(p)}
+	// back is the palm's normal on the back of the hand; fingers curl the
+	// other way, down toward the (imaginary) keyboard.
+	back := mesh.Vec3{X: 0, Y: math.Cos(p), Z: math.Sin(p)}
 	for i, h := range hands(m.b) {
 		wrist := upAt(h.wrist.X, h.wrist.Y, handWristZ)
 		place := func(o mesh.Vec2) mesh.Vec3 {
@@ -40,9 +48,17 @@ func addHands(m *modelBuilder) {
 				name = fmt.Sprintf("thumb-%d", i)
 			}
 			root, tip := place(d.root), place(d.tip)
+			// Curl: the digit leaves the palm flat and bends down more and
+			// more toward the tip (a parabola below the straight line).
+			drop := tip.Sub(root).Len() * digitCurl
+			path := make([]mesh.Vec3, digitSteps+1)
+			for k := range path {
+				t := float64(k) / digitSteps
+				path[k] = root.Add(tip.Sub(root).Scale(t)).Sub(back.Scale(drop * t * t))
+			}
 			r := d.r
-			me := mesh.Tube([]mesh.Vec3{root, tip}, func(float64) float64 { return r })
-			me.Append(mesh.Ellipsoid(r, r, r).Translate(tip))
+			me := mesh.Tube(path, func(float64) float64 { return r })
+			me.Append(mesh.Ellipsoid(r, r, r).Translate(path[digitSteps]))
 			m.add(name, me, m.mat.body)
 		}
 	}

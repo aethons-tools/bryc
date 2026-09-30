@@ -31,7 +31,8 @@ type digit struct {
 // viewer's left, so its thumb points right, toward the middle). The right
 // hand is its mirror image.
 const (
-	handSpread = 170.0 // wrist distance from the head's centre line
+	handSpread = 195.0 // wrist distance from the head's centre line
+	handScale  = 1.15  // size of the hand relative to the shapes below
 	handWristY = 712.0 // wrist height: below the lowest mouth, overlapping the chin
 	handTilt   = 18.0  // degrees the fingers turn in toward the middle
 	palmRound  = 30.0  // corner radius of the palm's triangle
@@ -57,14 +58,14 @@ func hands(b Layout) [2]hand {
 		// Tilt the fingers in toward the middle, then mirror for the right.
 		place := func(p mesh.Vec2) mesh.Vec2 {
 			u, v := p.X*cos+p.Y*sin, -p.X*sin+p.Y*cos
-			return mesh.Vec2{X: -side * u, Y: v}
+			return mesh.Vec2{X: -side * u * handScale, Y: v * handScale}
 		}
 		h := hand{wrist: mesh.Vec2{X: b.CX() + side*handSpread, Y: handWristY}}
 		for _, p := range roundedConvexOutline(palmCorners, palmRound) {
 			h.palm = append(h.palm, place(p))
 		}
 		for j, d := range leftDigits {
-			h.digits[j] = digit{root: place(d.root), tip: place(d.tip), r: d.r}
+			h.digits[j] = digit{root: place(d.root), tip: place(d.tip), r: d.r * handScale}
 		}
 		out[i] = h
 	}

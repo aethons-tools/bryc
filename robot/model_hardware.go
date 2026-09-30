@@ -23,6 +23,7 @@ func addHardware(m *modelBuilder) {
 	addFaceDetails(m)
 	addEars(m)
 	addAntenna(m)
+	addHands(m)
 }
 
 func addFaceDetails(m *modelBuilder) {

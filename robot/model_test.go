@@ -44,7 +44,7 @@ func TestModelBoundsAndUnits(t *testing.T) {
 	for seed := uint64(0); seed < 30; seed++ {
 		for _, n := range Model(Resolve(Spec{}, seed)).Nodes {
 			lo, hi := n.Mesh.Bounds()
-			if lo.X < -0.5 || hi.X > 0.5 || lo.Y < -1e-9 || hi.Y > 1 || lo.Z < -0.3 || hi.Z > 0.3 {
+			if lo.X < -0.5 || hi.X > 0.5 || lo.Y < -1e-9 || hi.Y > 1 || lo.Z < -0.3 || hi.Z > 0.4 { // the hands float in front
 				t.Fatalf("seed %d %s: bounds %v..%v outside the 1 m box", seed, n.Name, lo, hi)
 			}
 		}

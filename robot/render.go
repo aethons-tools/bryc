@@ -30,5 +30,6 @@ func Render(s Spec, size int) image.Image {
 		drawBlush(c, s, head)
 	}
 	antennaParts[s.Antenna](c, s, head)
+	drawHands(c, s, head)
 	return c.dc.Image()
 }
